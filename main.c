@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <cjson/cJSON.h>
 
@@ -131,6 +132,8 @@ int main(int argc, char *argv[]) {
 
     printf(BYEL);
 
+    clock_t start_time = clock();
+
     for (i = 0; i < test_count; i++) {
         printf("\rRunning test %s - %u/%u", argv[1], (i + 1), test_count);
         cJSON* current_test = cJSON_GetArrayItem(test_json, i);
@@ -145,6 +148,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    clock_t end_time = clock();
+    float elapsed = (float) end_time / (float) CLOCKS_PER_SEC;
+
     if (success) {
         printf(BGRN "\r\033[2KPassed test %s\n" COLOR_RESET, argv[1]);
     }
@@ -152,6 +158,8 @@ int main(int argc, char *argv[]) {
     else {
         printf(BRED "\r\033[2KFailed test %s - %u/%u\n" COLOR_RESET, argv[1], (i + 1), test_count);
     }
+
+    printf("Elapsed: %f\n", elapsed);
 
     free(file_buffer);
     cJSON_Delete(test_json);
