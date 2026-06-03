@@ -14,13 +14,7 @@ typedef void (*WDC65816_cycle_handler)(WDC65816* cpu);
 typedef void (*WDC65816_address_scheduler)(WDC65816* cpu);
 typedef void (*WDC65816_op_scheduler)(WDC65816* cpu);
 
-typedef void (*WDC65816_operand_fetcher)(WDC65816* cpu);
-
 typedef uint16_t (*WDC65816_algorithm_callback)(WDC65816* cpu, uint16_t source);
-
-typedef enum highest_bit_number {
-    HIGHEST_BYTE_BIT = 7, HIGHEST_WORD_BIT = 15
-} highest_bit_number;
 
 typedef struct WDC65816_op {
     WDC65816_address_scheduler schedule_address;
@@ -28,6 +22,10 @@ typedef struct WDC65816_op {
     
     bool dummy_read;
 } WDC65816_op;
+
+typedef enum WDC65816_data_size {
+    SIZE_WORD, SIZE_BYTE 
+} WDC65816_data_size;
 
 typedef enum WDC65816_flag {
     FLAG_C, FLAG_Z, FLAG_I, FLAG_D, FLAG_X, FLAG_M, FLAG_V, FLAG_N
@@ -59,9 +57,7 @@ struct WDC65816 {
     register_pair* index_register;
 
     WDC65816_algorithm_callback op_algorithm;
-    WDC65816_operand_fetcher fetch_operand;
-    
-    highest_bit_number highest_bit;
+    WDC65816_data_size data_size;
 
     uint8_t cycle_lookup_index;
 
