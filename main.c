@@ -16,7 +16,6 @@
 #define CHECK_REGISTER_16(REG) int reg_##REG##_value = cJSON_GetObjectItem(final_json, #REG)->valueint; if (cpu->registers.REG.word != reg_##REG##_value ) {printf(BRED "\nRegister " #REG " bad. Expected: %u, got: %u" COLOR_RESET, reg_##REG##_value, cpu->registers.REG.word); success = false;}
 #define CHECK_REGISTER_8(REG) int reg_##REG##_value = cJSON_GetObjectItem(final_json, #REG)->valueint; if (cpu->registers.REG != reg_##REG##_value ) {printf(BRED "\nRegister " #REG " bad. Expected: %u, got: %u" COLOR_RESET, reg_##REG##_value, cpu->registers.REG); success = false;}
 
-
 static uint8_t test_memory[0x1000000];
 
 static void init_test(WDC65816* cpu, cJSON* test_json) {
@@ -152,14 +151,12 @@ int main(int argc, char *argv[]) {
     float elapsed = (float) end_time / (float) CLOCKS_PER_SEC;
 
     if (success) {
-        printf(BGRN "\r\033[2KPassed test %s\n" COLOR_RESET, argv[1]);
+        printf(BGRN "\r\033[2KPassed test %s in %f seconds\n" COLOR_RESET, argv[1], elapsed);
     }
 
     else {
         printf(BRED "\r\033[2KFailed test %s - %u/%u\n" COLOR_RESET, argv[1], (i + 1), test_count);
     }
-
-    printf("Elapsed: %f\n", elapsed);
 
     free(file_buffer);
     cJSON_Delete(test_json);

@@ -35,6 +35,10 @@ typedef enum WDC65816_bank {
     BANK_PROGRAM, BANK_DATA, BANK_ZERO
 } WDC65816_bank;
 
+typedef enum WDC65816_vector {
+    VECTOR_IRQ = 0xFFEE, VECTOR_NMI = 0xFFEA, VECTOR_BRK = 0xFFE6, VECTOR_COP = 0xFFE4
+} WDC65816_vector;
+
 typedef union register_pair {
     struct {
         uint8_t low;
@@ -59,13 +63,18 @@ struct WDC65816 {
     WDC65816_algorithm_callback op_algorithm;
     WDC65816_data_size data_size;
 
-    uint8_t cycle_lookup_index;
+    WDC65816_vector interrupt_vector;
+    WDC65816_flag operation_flag;
 
     uint32_t operand_address : 24;
     uint32_t indirect_address : 24; 
     uint16_t operand;
+
+    bool take_branch;
+    int16_t branch_offset;
     
     uint8_t current_cycle;
+    uint8_t cycle_lookup_index;
 
     read_callback read;
     write_callback write;
