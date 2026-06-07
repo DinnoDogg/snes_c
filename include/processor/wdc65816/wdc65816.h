@@ -23,10 +23,6 @@ typedef struct WDC65816_op {
     bool dummy_read;
 } WDC65816_op;
 
-typedef enum WDC65816_data_size {
-    SIZE_WORD, SIZE_BYTE 
-} WDC65816_data_size;
-
 typedef enum WDC65816_flag {
     FLAG_C, FLAG_Z, FLAG_I, FLAG_D, FLAG_X, FLAG_M, FLAG_V, FLAG_N
 } WDC65816_flag;
@@ -59,9 +55,9 @@ struct WDC65816 {
     WDC65816_cycle_handler cycle_lookup[0x8];
 
     register_pair* index_register;
+    register_pair* operand_register;
 
     WDC65816_algorithm_callback op_algorithm;
-    WDC65816_data_size data_size;
 
     WDC65816_vector interrupt_vector;
     WDC65816_flag operation_flag;
@@ -72,6 +68,8 @@ struct WDC65816 {
 
     bool take_branch;
     int16_t branch_offset;
+
+    bool data_width_byte;
     
     uint8_t current_cycle;
     uint8_t cycle_lookup_index;

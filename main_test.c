@@ -21,8 +21,8 @@ int main() {
 
     clock_t start_time = clock();
 
-    for (int i = 0; i < 500000; i++) {
-        cycle_wdc65816(&test_cpu);
+    for (int i = 0; i < 50000; i++) {
+        wdc65816_run_instruction(&test_cpu);
     }
 
     clock_t end_time = clock();
