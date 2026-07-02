@@ -11,6 +11,7 @@ static void write(WDC65816* cpu, uint32_t address, uint8_t data);
 
 static void dummy_read(WDC65816* cpu, uint32_t address);
 static void dummy_read_pc(WDC65816* cpu);
+static void dummy_read_sp(WDC65816* cpu);
 
 static uint8_t read_immediate(WDC65816* cpu);
 
@@ -49,6 +50,9 @@ static void setup_alu_a(WDC65816* cpu);
 static void setup_alu_x(WDC65816* cpu);
 static void setup_alu_y(WDC65816* cpu);
 
+static void transfer_8(WDC65816* cpu, uint8_t value, uint8_t* reg);
+static void transfer_16(WDC65816* cpu, uint16_t value, uint16_t* reg);
+
 static uint16_t algorithm_and(WDC65816* cpu, uint16_t source);
 static uint16_t algorithm_asl(WDC65816* cpu, uint16_t source);
 static uint16_t algorithm_cmp(WDC65816* cpu, uint16_t source);
@@ -56,6 +60,10 @@ static uint16_t algorithm_dec(WDC65816* cpu, uint16_t source);
 static uint16_t algorithm_eor(WDC65816* cpu, uint16_t source);
 static uint16_t algorithm_inc(WDC65816* cpu, uint16_t source);
 static uint16_t algorithm_load(WDC65816* cpu, uint16_t source);
+static uint16_t algorithm_lsr(WDC65816* cpu, uint16_t source);
+static uint16_t algorithm_or(WDC65816* cpu, uint16_t source);
+static uint16_t algorithm_rol(WDC65816* cpu, uint16_t source);
+static uint16_t algorithm_ror(WDC65816* cpu, uint16_t source);
 
 static const uint8_t highest_bit_pos[0x2] = {0xF, 0x7};
 static const uint16_t max_value[0x2] = {0xFFFF, 0xFF};
@@ -204,8 +212,108 @@ static const WDC65816_op op_lookup[0x100] = {
     [0xBC] = {schedule_addr_a_x, schedule_ldy, false},
     [0xB4] = {schedule_addr_d_x, schedule_ldy, false},
 
+    [0x4A] = {schedule_addr_implied, schedule_lsr_a, false},
+    [0x4E] = {schedule_addr_a, schedule_lsr, true},
+    [0x46] = {schedule_addr_d, schedule_lsr, true},
+    [0x5E] = {schedule_addr_a_x, schedule_lsr, true},
+    [0x56] = {schedule_addr_d_x, schedule_lsr, true},
 
-    
+    [0x54] = {schedule_addr_implied, schedule_mvn, false},
+    [0x44] = {schedule_addr_implied, schedule_mvp, false},
+
+    [0xEA] = {schedule_addr_implied, schedule_nop, false},
+
+    [0x09] = {schedule_addr_imm, schedule_ora, false},
+    [0x0D] = {schedule_addr_a, schedule_ora, false},
+    [0x0F] = {schedule_addr_al, schedule_ora, false},
+    [0x05] = {schedule_addr_d, schedule_ora, false},
+    [0x12] = {schedule_addr_d_indr, schedule_ora, false},
+    [0x07] = {schedule_addr_dl_indr, schedule_ora, false},
+    [0x1D] = {schedule_addr_a_x, schedule_ora, false},
+    [0x1F] = {schedule_addr_al_x, schedule_ora, false},
+    [0x19] = {schedule_addr_a_y, schedule_ora, false},
+    [0x15] = {schedule_addr_d_x, schedule_ora, false},
+    [0x01] = {schedule_addr_d_x_indr, schedule_ora, false},
+    [0x11] = {schedule_addr_d_indr_y, schedule_ora, false},
+    [0x17] = {schedule_addr_dl_indr_y, schedule_ora, false},
+    [0x03] = {schedule_addr_d_s, schedule_ora, false},
+    [0x13] = {schedule_addr_d_s_indr_y, schedule_ora, false},
+
+    [0xF4] = {schedule_addr_implied, schedule_pea, false},
+    [0xD4] = {schedule_addr_implied, schedule_pei, false},
+    [0x62] = {schedule_addr_implied, schedule_per, false},
+
+    [0x48] = {schedule_addr_implied, schedule_pha, false},
+    [0x8B] = {schedule_addr_implied, schedule_phb, false},
+    [0x0B] = {schedule_addr_implied, schedule_phd, false},
+    [0xDA] = {schedule_addr_implied, schedule_phx, false},
+    [0x5A] = {schedule_addr_implied, schedule_phy, false},
+
+    [0x68] = {schedule_addr_implied, schedule_pla, false},
+    [0xAB] = {schedule_addr_implied, schedule_plb, false},
+    [0x2B] = {schedule_addr_implied, schedule_pld, false},
+    [0x28] = {schedule_addr_implied, schedule_plp, false},
+    [0xFA] = {schedule_addr_implied, schedule_plx, false},
+    [0x7A] = {schedule_addr_implied, schedule_ply, false},
+
+    [0xC2] = {schedule_addr_implied, schedule_rep, false},
+
+    [0x2A] = {schedule_addr_implied, schedule_rol_a, false},
+    [0x2E] = {schedule_addr_a, schedule_rol, true},
+    [0x26] = {schedule_addr_d, schedule_rol, true},
+    [0x3E] = {schedule_addr_a_x, schedule_rol, true},
+    [0x36] = {schedule_addr_d_x, schedule_rol, true},
+
+    [0x6A] = {schedule_addr_implied, schedule_ror_a, false},
+    [0x6E] = {schedule_addr_a, schedule_ror, true},
+    [0x66] = {schedule_addr_d, schedule_ror, true},
+    [0x7E] = {schedule_addr_a_x, schedule_ror, true},
+    [0x76] = {schedule_addr_d_x, schedule_ror, true},
+
+    [0x40] = {schedule_addr_implied, schedule_rti, false},
+    [0x60] = {schedule_addr_implied, schedule_rts, false},
+    [0x6B] = {schedule_addr_implied, schedule_rtl, false},
+
+    [0x38] = {schedule_addr_implied, schedule_sec, false},
+    [0x78] = {schedule_addr_implied, schedule_sei, false},
+    [0xF8] = {schedule_addr_implied, schedule_sed, false},
+
+    [0xE2] = {schedule_addr_implied, schedule_sep, false},
+
+    [0x8D] = {schedule_addr_a, schedule_sta, true},
+    [0x8F] = {schedule_addr_al, schedule_sta, true},
+    [0x85] = {schedule_addr_d, schedule_sta, true},
+    [0x92] = {schedule_addr_d_indr, schedule_sta, true},
+    [0x87] = {schedule_addr_dl_indr, schedule_sta, true},
+    [0x9D] = {schedule_addr_a_x, schedule_sta, true},
+    [0x9F] = {schedule_addr_al_x, schedule_sta, true},
+    [0x99] = {schedule_addr_a_y, schedule_sta, true},
+    [0x95] = {schedule_addr_d_x, schedule_sta, true},
+    [0x81] = {schedule_addr_d_x_indr, schedule_sta, true},
+    [0x91] = {schedule_addr_d_indr_y, schedule_sta, true},
+    [0x97] = {schedule_addr_dl_indr_y, schedule_sta, true},
+    [0x83] = {schedule_addr_d_s, schedule_sta, true},
+    [0x93] = {schedule_addr_d_s_indr_y, schedule_sta, true},
+
+    [0x8E] = {schedule_addr_a, schedule_stx, true},
+    [0x86] = {schedule_addr_d, schedule_stx, true},
+    [0x96] = {schedule_addr_d_y, schedule_stx, true},
+
+    [0x8C] = {schedule_addr_a, schedule_sty, true},
+    [0x84] = {schedule_addr_d, schedule_sty, true},
+    [0x94] = {schedule_addr_d_x, schedule_sty, true},
+
+    [0x9C] = {schedule_addr_a, schedule_stz, true},
+    [0x64] = {schedule_addr_d, schedule_stz, true},
+    [0x9E] = {schedule_addr_a_x, schedule_stz, true},
+    [0x74] = {schedule_addr_d_x, schedule_stz, true},
+
+    [0xAA] = {schedule_addr_implied, schedule_tax, false},
+    [0xA8] = {schedule_addr_implied, schedule_tay, false},
+    [0x5B] = {schedule_addr_implied, schedule_tcd, false},
+    [0x1B] = {schedule_addr_implied, schedule_tcs, false},
+    [0x7B] = {schedule_addr_implied, schedule_tdc, false},
+
 };
 
 void init_wdc65816(WDC65816* cpu, read_callback read, write_callback write) {
@@ -224,7 +332,7 @@ void cycle_wdc65816(WDC65816* cpu) {
             return;
         }
 
-        if (cpu->irq_pending) {
+        else if (cpu->irq_pending) {
 
             cpu->interrupt_vector = VECTOR_IRQ;
             schedule_interrupt(cpu);
@@ -248,6 +356,7 @@ void cycle_wdc65816(WDC65816* cpu) {
     }
 
     cpu->nmi_latch = cpu->nmi_line && !cpu->last_nmi_line;
+    cpu->last_nmi_line = cpu->nmi_line;
 }
 
 void wdc65816_print_state(WDC65816* cpu) {
@@ -318,6 +427,10 @@ void dummy_read(WDC65816* cpu, uint32_t address) {
 
 void dummy_read_pc(WDC65816* cpu) {
     cpu->read((cpu->registers.pbr << 16) | cpu->registers.pc.word);
+}
+
+void dummy_read_sp(WDC65816* cpu) {
+    cpu->read(cpu->registers.s.word);
 }
 
 uint8_t read_immediate(WDC65816* cpu) {
@@ -419,6 +532,16 @@ void end_op(WDC65816* cpu) {
     end_op_flag_i(cpu, get_flag(cpu, FLAG_I));
 }
 
+void transfer_8(WDC65816* cpu, uint8_t value, uint8_t* reg) {
+    *reg = value;
+    set_nz(cpu, value);
+}
+
+void transfer_16(WDC65816* cpu, uint16_t value, uint16_t* reg) {
+    *reg = value;
+    set_nz(cpu, value);
+}
+
 void end_op_flag_i(WDC65816* cpu, bool flag_i) {
     cpu->current_cycle = 0x00;
     cpu->cycle_lookup_index = 0x00;
@@ -490,6 +613,38 @@ uint16_t algorithm_inc(WDC65816* cpu, uint16_t source) {
 uint16_t algorithm_load(WDC65816* cpu, uint16_t source) {
     set_nz(cpu, cpu->operand);
     return cpu->operand;
+}
+
+uint16_t algorithm_lsr(WDC65816* cpu, uint16_t source) {
+    uint16_t result = source >> 1;
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_C, source & 0x1);
+    return result;
+}
+
+uint16_t algorithm_or(WDC65816* cpu, uint16_t source) {
+    uint16_t result = source | cpu->operand;
+    set_nz(cpu, result);
+    return result;
+}
+
+uint16_t algorithm_rol(WDC65816* cpu, uint16_t source) {
+    uint16_t data_mask = get_data_mask(cpu);
+    int bit_c = get_highest_bit_position(cpu);
+    uint16_t result = (source << 1) | get_flag(cpu, FLAG_C);
+    result &= data_mask;
+    set_flag(cpu, FLAG_C, source >> bit_c);
+    set_nz(cpu, result);
+    return result;
+}
+
+uint16_t algorithm_ror(WDC65816* cpu, uint16_t source) {
+    int bit_c = get_highest_bit_position(cpu);
+    uint16_t result = (source >> 1) | (get_flag(cpu, FLAG_C) << bit_c);
+    set_flag(cpu, FLAG_C, source & 0x1);
+    set_nz(cpu, result);
+    return result;
 }
 
 void schedule_addr_a(WDC65816* cpu) {
@@ -722,7 +877,7 @@ static void schedule_addr_imm_x(WDC65816* cpu) {
 void schedule_addr_d_s(WDC65816* cpu) {
     cpu->bank_mode = BANK_ZERO;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_1;
-    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
 }
 
 void addr_d_s_1(WDC65816* cpu) {
@@ -730,16 +885,12 @@ void addr_d_s_1(WDC65816* cpu) {
     cpu->operand_address &= 0xFFFF;
 }
 
-void addr_d_s_2(WDC65816* cpu) {
-    dummy_read_pc(cpu);
-}
-
 void schedule_addr_d_s_indr_y(WDC65816* cpu) {
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_indr_y_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_indr_y_2;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_indr_y_3;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_indr_y_4;
-    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &addr_d_s_indr_y_5;
 
 } 
 
@@ -749,20 +900,16 @@ void addr_d_s_indr_y_1(WDC65816* cpu) {
 }
 
 void addr_d_s_indr_y_2(WDC65816* cpu) {
-    dummy_read_pc(cpu);
-}
-
-void addr_d_s_indr_y_3(WDC65816* cpu) {
     cpu->operand_address = (cpu->registers.dbr << 16) | read(cpu, cpu->indirect_address++);
     cpu->indirect_address &= 0xFFFF;
 }
 
-void addr_d_s_indr_y_4(WDC65816* cpu) {
+void addr_d_s_indr_y_3(WDC65816* cpu) {
     cpu->operand_address |= read(cpu, cpu->indirect_address) << 8;
     cpu->operand_address += cpu->registers.y.word;
 }
 
-void addr_d_s_indr_y_5(WDC65816* cpu) {
+void addr_d_s_indr_y_4(WDC65816* cpu) {
     dummy_read(cpu, cpu->indirect_address);
 }
 
@@ -821,17 +968,15 @@ void schedule_alu_memory_writeback(WDC65816* cpu) {
 
 void alu_memory_writeback_8_1(WDC65816* cpu) {
     load_operand_byte(cpu);
-    cpu->operand_register->low = cpu->op_algorithm(cpu, cpu->operand_register->low);
-    end_op(cpu);
+    alu_8_1(cpu);
 }
 
 void alu_memory_writeback_16_1(WDC65816* cpu) {
     load_operand_word_high(cpu);
-    cpu->operand_register->word = cpu->op_algorithm(cpu, cpu->operand_register->word);
-    end_op(cpu);
+    alu_16_1(cpu);
 }
 
-void schedule_alu(WDC65816* cpu) {
+void schedule_alu_implicit(WDC65816* cpu) {
     if (cpu->data_width_byte) {
         cpu->cycle_lookup[cpu->cycle_lookup_index++] = &alu_8_1;
         return;
@@ -848,11 +993,6 @@ void alu_16_1(WDC65816* cpu) {
     cpu->operand_register->word = cpu->op_algorithm(cpu, cpu->operand_register->word);
     end_op(cpu);
 }
-
-
-
-
-
 
 void schedule_rmw(WDC65816* cpu) {
     cpu->data_width_byte = get_flag(cpu, FLAG_M);
@@ -909,16 +1049,6 @@ void rmw_16_5(WDC65816* cpu) {
     end_op(cpu);
 }
 
-void index_reg_8_1(WDC65816* cpu) {
-    cpu->index_register->low = cpu->op_algorithm(cpu, cpu->index_register->low);
-    end_op(cpu);
-}
-
-void index_reg_16_1(WDC65816* cpu) {
-    cpu->index_register->word = cpu->op_algorithm(cpu, cpu->index_register->word);
-    end_op(cpu);
-}
-
 void accumulator_8_1(WDC65816* cpu) {
     cpu->registers.a.low = cpu->op_algorithm(cpu, cpu->registers.a.low);
     end_op(cpu);
@@ -943,7 +1073,7 @@ void schedule_asl(WDC65816* cpu) {
 void schedule_asl_a(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_asl;
     setup_alu_a(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_branch(WDC65816* cpu) {
@@ -1131,7 +1261,7 @@ void schedule_dec(WDC65816* cpu) {
 void schedule_dec_a(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_dec;
     setup_alu_a(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_cpx(WDC65816* cpu) {
@@ -1149,13 +1279,13 @@ void schedule_cpy(WDC65816* cpu) {
 void schedule_dex(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_dec;
     setup_alu_x(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_dey(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_dec;
     setup_alu_y(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_eor(WDC65816* cpu) {
@@ -1172,20 +1302,20 @@ void schedule_inc(WDC65816* cpu) {
 void schedule_inc_a(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_inc;
     setup_alu_a(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_inx(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_inc;
     setup_alu_x(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 
 }
 
 void schedule_iny(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_inc;
     setup_alu_y(cpu);
-    schedule_alu(cpu);
+    schedule_alu_implicit(cpu);
 }
 
 void schedule_jmp_a(WDC65816* cpu) {
@@ -1288,9 +1418,9 @@ void jml_indr_2(WDC65816* cpu) {
 void schedule_jsr_a(WDC65816* cpu) {
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jmp_a_1;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_2;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_3;
-    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_4;
 }
 
 void jsr_a_1(WDC65816* cpu) {
@@ -1298,15 +1428,11 @@ void jsr_a_1(WDC65816* cpu) {
 }
 
 void jsr_a_2(WDC65816* cpu) {
-    dummy_read_pc(cpu);
-}
-
-void jsr_a_3(WDC65816* cpu) {
     cpu->registers.pc.word--;
     push_stack(cpu, cpu->registers.pc.high);
 }
 
-void jsr_a_4(WDC65816* cpu) {
+void jsr_a_3(WDC65816* cpu) {
     push_stack(cpu, cpu->registers.pc.low);
     cpu->registers.pc.word = cpu->operand_address;
     end_op(cpu);
@@ -1334,10 +1460,10 @@ void schedule_jsl(WDC65816* cpu) {
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jmp_a_1;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jml_1;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsl_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_sp;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsl_2;
-    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsl_3;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_2;
     cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_3;
-    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &jsr_a_4;
 }
 
 void jsl_1(WDC65816* cpu) {
@@ -1345,10 +1471,6 @@ void jsl_1(WDC65816* cpu) {
 }
 
 void jsl_2(WDC65816* cpu) {
-    dummy_read(cpu, cpu->registers.s.word);
-}
-
-void jsl_3(WDC65816* cpu) {
     cpu->registers.pbr = read_immediate(cpu);
 }
 
@@ -1368,4 +1490,617 @@ void schedule_ldy(WDC65816* cpu) {
     cpu->op_algorithm = &algorithm_load;
     setup_alu_y(cpu);
     schedule_alu_memory_writeback(cpu);
+}
+
+void schedule_lsr(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_lsr;
+    schedule_rmw(cpu);
+}
+
+void schedule_lsr_a(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_lsr;
+    setup_alu_a(cpu);
+    schedule_alu_implicit(cpu);
+}
+
+void schedule_block_move(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_3;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_4;
+} 
+
+void block_move_1(WDC65816* cpu) {
+    cpu->registers.dbr = read_immediate(cpu);
+}
+
+void block_move_2(WDC65816* cpu) {
+    cpu->operand_address = read_immediate(cpu) << 16;
+}
+
+void block_move_3(WDC65816* cpu) {
+    cpu->operand = read(cpu, cpu->operand_address | cpu->registers.x.word);
+}
+
+void block_move_4(WDC65816* cpu) {
+    uint32_t address = (cpu->registers.dbr << 16) | cpu->registers.y.word;
+    write(cpu, address, cpu->operand);
+
+}
+
+void block_move_5(WDC65816* cpu) {
+    uint32_t address = (cpu->registers.dbr << 16) | cpu->registers.y.word;
+    dummy_read(cpu, address);
+
+    if (--cpu->registers.a.word != 0xFFFF) {
+        cpu->registers.pc.word -= 3;
+    }
+
+    end_op(cpu);
+}
+
+void schedule_mvn(WDC65816* cpu) {
+    schedule_block_move(cpu);
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &mvn_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_5;
+}
+
+void mvn_1(WDC65816* cpu) {
+    uint32_t address = (cpu->registers.dbr << 16) | cpu->registers.y.word;
+    dummy_read(cpu, address);
+    cpu->registers.x.word++;
+    cpu->registers.y.word++;
+
+    if (get_flag(cpu, FLAG_X)) {
+        cpu->registers.x.word &= 0xFF;
+        cpu->registers.y.word &= 0xFF;    
+    }   
+}
+
+void schedule_mvp(WDC65816* cpu) {
+    schedule_block_move(cpu);
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &mvp_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &block_move_5;
+}
+
+void mvp_1(WDC65816* cpu) {
+    uint32_t address = (cpu->registers.dbr << 16) | cpu->registers.y.word;
+    dummy_read(cpu, address);
+    cpu->registers.x.word--;
+    cpu->registers.y.word--;
+
+    if (get_flag(cpu, FLAG_X)) {
+        cpu->registers.x.word &= 0xFF;
+        cpu->registers.y.word &= 0xFF;    
+    }   
+}
+
+void schedule_nop(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &nop_1;
+}
+
+void nop_1(WDC65816* cpu) {
+    dummy_read_pc(cpu);
+    end_op(cpu);
+}
+
+void schedule_ora(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_or;
+    setup_alu_a(cpu);
+    schedule_alu_memory_writeback(cpu);
+}
+
+void schedule_push_op_8(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &push_op_8_1;
+}
+
+void push_op_8_1(WDC65816* cpu) {
+    push_stack(cpu, cpu->operand & 0xFF);
+    end_op(cpu);
+}
+
+void schedule_push_op_16(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &push_op_16_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &push_op_16_2;
+}
+
+void push_op_16_1(WDC65816* cpu) {
+    push_stack(cpu, cpu->operand >> 8);
+}
+
+void push_op_16_2(WDC65816* cpu) {
+    push_stack(cpu, cpu->operand & 0xFF);
+    end_op(cpu);
+}
+
+void schedule_pea(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pea_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pea_2;
+    schedule_push_op_16(cpu);
+}
+
+void pea_1(WDC65816* cpu) {
+    cpu->operand = read_immediate(cpu);
+}
+
+void pea_2(WDC65816* cpu) {
+    cpu->operand |= read_immediate(cpu) << 8;
+}
+
+void schedule_pei(WDC65816* cpu) {
+    schedule_addr_d(cpu);
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pei_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pei_2;
+    schedule_push_op_16(cpu);
+}
+
+void pei_1(WDC65816* cpu) {
+    load_operand_word_low(cpu);
+}
+
+void pei_2(WDC65816* cpu) {
+    load_operand_word_high(cpu);
+}
+
+void schedule_per(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &per_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &per_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &per_3;
+    schedule_push_op_16(cpu);
+}
+
+void per_1(WDC65816* cpu) {
+    cpu->operand = read_immediate(cpu);
+}
+
+void per_2(WDC65816* cpu) {
+    cpu->operand |= read_immediate(cpu) << 8;
+}
+
+void per_3(WDC65816* cpu) {
+    dummy_read_pc(cpu);
+    cpu->operand += cpu->registers.pc.word;
+}
+
+void schedule_pha(WDC65816* cpu) {
+    cpu->operand = cpu->registers.a.word;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+
+    if (get_flag(cpu, FLAG_M)) {
+        schedule_push_op_8(cpu);
+        return;
+    }
+    schedule_push_op_16(cpu);
+}
+
+void schedule_phb(WDC65816* cpu) {
+    cpu->operand = cpu->registers.dbr;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    schedule_push_op_8(cpu);
+}
+
+void schedule_phd(WDC65816* cpu) {
+    cpu->operand = cpu->registers.d.word;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    schedule_push_op_16(cpu);
+}
+
+void schedule_phk(WDC65816* cpu) {
+    cpu->operand = cpu->registers.pbr;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    schedule_push_op_8(cpu);
+}
+
+void schedule_php(WDC65816* cpu) {
+    cpu->operand = cpu->registers.p;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    schedule_push_op_8(cpu);
+}
+
+void schedule_push_index(WDC65816* cpu) {
+    cpu->operand = cpu->index_register->word;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+
+    if (get_flag(cpu, FLAG_X)) {
+        schedule_push_op_8(cpu);
+        return;
+    }
+    schedule_push_op_16(cpu);
+}
+
+void schedule_phx(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.x;
+    schedule_push_index(cpu);
+}
+
+void schedule_phy(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.y;
+    schedule_push_index(cpu);
+}
+
+void schedule_pla(WDC65816* cpu) {
+    cpu->data_width_byte = get_flag(cpu, FLAG_M);
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    
+    if (cpu->data_width_byte) {
+        cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pla_8_1;
+        return;
+    }
+
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pla_16_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pla_16_2;
+}
+
+void pla_8_1(WDC65816* cpu) {
+    cpu->registers.a.low = pull_stack(cpu);
+    set_nz(cpu, cpu->registers.a.low);
+    end_op(cpu);
+}
+
+void pla_16_1(WDC65816* cpu) {
+    cpu->registers.a.low = pull_stack(cpu);
+}
+
+void pla_16_2(WDC65816* cpu) {
+    cpu->registers.a.high = pull_stack(cpu);
+    set_nz(cpu, cpu->registers.a.word);
+    end_op(cpu);
+}
+
+void schedule_plb(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &plb_1;
+    cpu->data_width_byte = true;
+}
+
+void plb_1(WDC65816* cpu) {
+    cpu->registers.dbr = pull_stack(cpu);
+    set_nz(cpu, cpu->registers.dbr);
+    end_op(cpu);
+}
+
+void schedule_pld(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pld_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pld_2;
+    cpu->data_width_byte = false;
+}
+
+void pld_1(WDC65816* cpu) {
+    cpu->registers.d.low = pull_stack(cpu);
+}
+
+void pld_2(WDC65816* cpu) {
+    cpu->registers.d.high = pull_stack(cpu);
+    set_nz(cpu, cpu->registers.d.word);
+    end_op(cpu);
+}
+
+void schedule_plp(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &plp_1;
+}
+
+void plp_1(WDC65816* cpu) {
+    bool flag_i = get_flag(cpu, FLAG_I);
+    cpu->registers.p = pull_stack(cpu);
+
+    if (get_flag(cpu, FLAG_X)) {
+        cpu->registers.x.high = 0x00;
+        cpu->registers.y.high = 0x00;
+    }
+    end_op_flag_i(cpu, flag_i);
+}
+
+void schedule_pull_index(WDC65816* cpu) {
+    cpu->data_width_byte = get_flag(cpu, FLAG_X);
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    
+    if (cpu->data_width_byte) {
+        cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pull_index_8_1;
+        return;
+    }
+
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pull_index_16_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &pull_index_16_2;
+}
+
+void pull_index_8_1(WDC65816* cpu) {
+    cpu->index_register->low = pull_stack(cpu);
+    set_nz(cpu, cpu->index_register->low);
+    end_op(cpu);
+}
+
+void pull_index_16_1(WDC65816* cpu) {
+    cpu->index_register->low = pull_stack(cpu);
+}
+
+void pull_index_16_2(WDC65816* cpu) {
+    cpu->index_register->high = pull_stack(cpu);
+    set_nz(cpu, cpu->index_register->word);
+    end_op(cpu);
+}
+
+void schedule_plx(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.x;
+    schedule_pull_index(cpu);
+}
+
+void schedule_ply(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.y;
+    schedule_pull_index(cpu);
+}
+
+void schedule_rep(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rep_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rep_2;
+}
+
+void rep_1(WDC65816* cpu) {
+    cpu->operand = read_immediate(cpu);
+}
+
+void rep_2(WDC65816* cpu) {
+    bool flag_i = get_flag(cpu, FLAG_I);
+    cpu->registers.p &= ~cpu->operand;
+    end_op_flag_i(cpu, flag_i);
+}
+
+void schedule_rol(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_rol;
+    schedule_rmw(cpu);
+}
+
+void schedule_rol_a(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_rol;
+    setup_alu_a(cpu);
+    schedule_alu_implicit(cpu);
+}
+
+void schedule_ror(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_ror;
+    schedule_rmw(cpu);
+}
+
+void schedule_ror_a(WDC65816* cpu) {
+    cpu->op_algorithm = &algorithm_ror;
+    setup_alu_a(cpu);
+    schedule_alu_implicit(cpu);
+}
+
+void schedule_rts(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rts_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rts_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rts_3;
+
+}
+
+void rts_1(WDC65816* cpu) {
+    cpu->registers.pc.low = pull_stack(cpu);
+}
+
+void rts_2(WDC65816* cpu) {
+    cpu->registers.pc.high = pull_stack(cpu);
+    cpu->registers.pc.word++;
+}
+
+void rts_3(WDC65816* cpu) {
+    dummy_read_sp(cpu);
+    end_op(cpu);
+}
+
+void schedule_rtl(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rts_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rts_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rtl_1;
+}
+
+void rtl_1(WDC65816* cpu) {
+    cpu->registers.pbr = pull_stack(cpu);
+    end_op(cpu);
+}
+
+
+void schedule_rti(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rti_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rti_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rti_3;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &rti_4;
+}
+
+void rti_1(WDC65816* cpu) {
+    cpu->registers.p = pull_stack(cpu);
+    if (get_flag(cpu, FLAG_X)) {
+        cpu->registers.x.high = 0x00;
+        cpu->registers.y.high = 0x00;
+    }
+}
+
+void rti_2(WDC65816* cpu) {
+    cpu->registers.pc.low = pull_stack(cpu);
+}
+
+void rti_3(WDC65816* cpu) {
+    cpu->registers.pc.high = pull_stack(cpu);
+}
+
+void rti_4(WDC65816* cpu) {
+    cpu->registers.pbr = pull_stack(cpu);
+    end_op(cpu);
+}
+
+void schedule_flag_set(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &flag_set_1;
+}
+
+void flag_set_1(WDC65816* cpu) {
+    bool flag_i = get_flag(cpu, FLAG_I); 
+    set_flag(cpu, cpu->operation_flag, true);
+    end_op_flag_i(cpu, flag_i);
+}
+
+void schedule_sec(WDC65816* cpu) {
+    cpu->operation_flag = FLAG_C;
+    schedule_flag_set(cpu);
+}
+
+void schedule_sed(WDC65816* cpu) {
+    cpu->operation_flag = FLAG_D;
+    schedule_flag_set(cpu);
+}
+
+void schedule_sei(WDC65816* cpu) {
+    cpu->operation_flag = FLAG_I;
+    schedule_flag_set(cpu);
+}
+
+void schedule_sep(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &sep_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &sep_2;
+}
+
+void sep_1(WDC65816* cpu) {
+    cpu->operand = read_immediate(cpu);
+}
+
+void sep_2(WDC65816* cpu) {
+    bool flag_i = get_flag(cpu, FLAG_I);
+    cpu->registers.p |= cpu->operand;
+
+    if (get_flag(cpu, FLAG_X)) {
+        cpu->registers.x.high = 0x00;
+        cpu->registers.y.high = 0x00;
+    }
+    end_op_flag_i(cpu, flag_i);
+}
+
+void schedule_store_8(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &store_8_1;
+}
+
+void schedule_store_16(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &store_16_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &store_16_2;
+}
+
+void store_8_1(WDC65816* cpu) {
+    write(cpu, cpu->operand_address, cpu->operand & 0xFF);
+    end_op(cpu);
+}
+
+void store_16_1(WDC65816* cpu) {
+    write(cpu, cpu->operand_address, cpu->operand & 0xFF);
+    increment_address(cpu);
+}
+
+void store_16_2(WDC65816* cpu) {
+    write(cpu, cpu->operand_address, cpu->operand >> 8);
+    end_op(cpu);
+}
+
+void schedule_sta(WDC65816* cpu) {
+    cpu->operand = cpu->registers.a.word;
+    if (get_flag(cpu, FLAG_M)) {
+        schedule_store_8(cpu);
+        return;
+    }
+    schedule_store_16(cpu);
+}
+
+void schedule_store_indirect(WDC65816* cpu) {
+    if (get_flag(cpu, FLAG_X)) {
+        schedule_store_8(cpu);
+        return;
+    }
+    schedule_store_16(cpu);
+}
+
+void schedule_stx(WDC65816* cpu) {
+    cpu->operand = cpu->registers.x.word;
+    schedule_store_indirect(cpu);
+}
+
+void schedule_sty(WDC65816* cpu) {
+    cpu->operand = cpu->registers.y.word;
+    schedule_store_indirect(cpu);
+}
+
+void schedule_stz(WDC65816* cpu) {
+    cpu->operand = 0x00;
+    if (get_flag(cpu, FLAG_M)) {
+        schedule_store_8(cpu);
+        return;
+    }
+    schedule_store_16(cpu);
+}
+
+void schedule_ta_index(WDC65816* cpu) {
+    cpu->data_width_byte = get_flag(cpu, FLAG_X);
+
+    if(cpu->data_width_byte) {
+        cpu->cycle_lookup[cpu->cycle_lookup_index++] = &ta_index_8_1;
+        return;
+    }
+
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &ta_index_16_1;
+}
+
+void ta_index_8_1(WDC65816* cpu) {
+    transfer_8(cpu, cpu->registers.a.low, &cpu->index_register->low);
+    end_op(cpu);
+}
+
+void ta_index_16_1(WDC65816* cpu) {
+    transfer_16(cpu, cpu->registers.a.word, &cpu->index_register->word);
+    end_op(cpu);
+}
+
+void schedule_tax(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.x;
+    schedule_ta_index(cpu);
+}
+
+void schedule_tay(WDC65816* cpu) {
+    cpu->index_register = &cpu->registers.y;
+    schedule_ta_index(cpu);
+}
+
+void schedule_tcd(WDC65816* cpu) {
+    cpu->data_width_byte = false;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &tcd_1;
+}
+
+void tcd_1(WDC65816* cpu) {
+    transfer_16(cpu, cpu->registers.a.word, &cpu->registers.d.word);
+    end_op(cpu);
+}
+
+void schedule_tcs(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &tcs_1;
+}
+
+void tcs_1(WDC65816* cpu) {
+    cpu->registers.s.word = cpu->registers.a.word;
+    end_op(cpu);
+}
+
+void schedule_tdc(WDC65816* cpu) {
+    cpu->data_width_byte = false;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &tdc_1;
+}
+
+void tdc_1(WDC65816* cpu) {
+    transfer_16(cpu, cpu->registers.d.word, &cpu->registers.a.word);
+    end_op(cpu);
 }

@@ -66,6 +66,9 @@ struct WDC65816 {
     uint32_t indirect_address : 24; 
     uint16_t operand;
 
+    uint8_t* stack_target_8;
+    uint16_t* stack_target_16;
+
     bool take_branch;
     int16_t branch_offset;
 

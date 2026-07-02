@@ -49,14 +49,12 @@ static void addr_d_x_indr_1(WDC65816* cpu);
 
 static void schedule_addr_d_s(WDC65816* cpu);
 static void addr_d_s_1(WDC65816* cpu); 
-static void addr_d_s_2(WDC65816* cpu); 
 
 static void schedule_addr_d_s_indr_y(WDC65816* cpu);
 static void addr_d_s_indr_y_1(WDC65816* cpu);
 static void addr_d_s_indr_y_2(WDC65816* cpu);
 static void addr_d_s_indr_y_3(WDC65816* cpu);
 static void addr_d_s_indr_y_4(WDC65816* cpu);
-static void addr_d_s_indr_y_5(WDC65816* cpu);
 
 static void schedule_addr_imm(WDC65816* cpu);
 static void schedule_addr_imm_x(WDC65816* cpu);
