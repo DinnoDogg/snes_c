@@ -1,53 +1,142 @@
-static void schedule_rmw(WDC65816* cpu);
-static void rmw_8_1(WDC65816* cpu);
-static void rmw_8_2(WDC65816* cpu);
-static void rmw_8_3(WDC65816* cpu);
+static void schedule_load_mem_op_8(WDC65816* cpu);
+static void load_mem_op_8_1(WDC65816* cpu);
 
-static void rmw_16_1(WDC65816* cpu);
-static void rmw_16_2(WDC65816* cpu);
-static void rmw_16_3(WDC65816* cpu);
-static void rmw_16_4(WDC65816* cpu);
-static void rmw_16_5(WDC65816* cpu);
+static void schedule_load_mem_op_16(WDC65816* cpu);
+static void load_mem_op_16_1(WDC65816* cpu);
 
-static void schedule_alu_implicit(WDC65816* cpu);
-static void alu_8_1(WDC65816* cpu);
-static void alu_16_1(WDC65816* cpu);
-static void alu_16_2(WDC65816* cpu);
+static void schedule_rmw_a_8(WDC65816* cpu);
+static void rmw_a_8_1(WDC65816* cpu);
 
-static void schedule_alu_memory(WDC65816* cpu);
-static void alu_memory_8_1(WDC65816* cpu);
-static void alu_memory_16_1(WDC65816* cpu);
-static void alu_memory_16_2(WDC65816* cpu);
+static void schedule_rmw_a_16(WDC65816* cpu);
+static void rmw_a_16_1(WDC65816* cpu);
 
-static void schedule_alu_memory_writeback(WDC65816* cpu);
-static void alu_memory_writeback_8_1(WDC65816* cpu);
-static void alu_memory_writeback_16_1(WDC65816* cpu);
+static void schedule_rmw_mem_8(WDC65816* cpu);
+static void rmw_mem_8_1(WDC65816* cpu);
+static void rmw_mem_8_2(WDC65816* cpu);
 
-static void schedule_alu(WDC65816* cpu);
-static void alu_8_1(WDC65816* cpu);
-static void alu_16_1(WDC65816* cpu);
+static void schedule_rmw_mem_16(WDC65816* cpu);
+static void rmw_mem_16_1(WDC65816* cpu);
+static void rmw_mem_16_2(WDC65816* cpu);
 
-static void schedule_and(WDC65816* cpu);
-static void schedule_eor(WDC65816* cpu);
-static void schedule_bit(WDC65816* cpu);
-static void schedule_cmp(WDC65816* cpu);
-static void schedule_lda(WDC65816* cpu);
-static void schedule_ora(WDC65816* cpu);
 
-static void schedule_asl(WDC65816* cpu);
-static void schedule_asl_a(WDC65816* cpu);
 
-static void schedule_dec(WDC65816* cpu);
-static void schedule_dec_a(WDC65816* cpu);
+static void schedule_and_8(WDC65816* cpu); 
+static void schedule_and_16(WDC65816* cpu);
+static void op_and_8(WDC65816* cpu); 
+static void op_and_16(WDC65816* cpu); 
 
-static void schedule_lsr(WDC65816* cpu);
-static void schedule_lsr_a(WDC65816* cpu);
+static void schedule_bit_8(WDC65816* cpu); 
+static void schedule_bit_16(WDC65816* cpu);
+static void op_bit_8(WDC65816* cpu); 
+static void op_bit_16(WDC65816* cpu); 
 
-static void schedule_rol(WDC65816* cpu);
-static void schedule_rol_a(WDC65816* cpu);
+static void schedule_cmp_8(WDC65816* cpu); 
+static void schedule_cmp_16(WDC65816* cpu);
+static void op_cmp_8(WDC65816* cpu); 
+static void op_cmp_16(WDC65816* cpu); 
 
-static void schedule_ror(WDC65816* cpu);
-static void schedule_ror_a(WDC65816* cpu);
+static void schedule_eor_8(WDC65816* cpu); 
+static void schedule_eor_16(WDC65816* cpu);
+static void op_eor_8(WDC65816* cpu); 
+static void op_eor_16(WDC65816* cpu); 
+
+static void schedule_cpx_8(WDC65816* cpu); 
+static void schedule_cpx_16(WDC65816* cpu);
+static void op_cpx_8(WDC65816* cpu); 
+static void op_cpx_16(WDC65816* cpu); 
+
+static void schedule_cpy_8(WDC65816* cpu); 
+static void schedule_cpy_16(WDC65816* cpu);
+static void op_cpy_8(WDC65816* cpu); 
+static void op_cpy_16(WDC65816* cpu); 
+
+static void schedule_lda_8(WDC65816* cpu); 
+static void schedule_lda_16(WDC65816* cpu);
+static void op_lda_8(WDC65816* cpu); 
+static void op_lda_16(WDC65816* cpu); 
+
+static void schedule_ldx_8(WDC65816* cpu); 
+static void schedule_ldx_16(WDC65816* cpu);
+static void op_ldx_8(WDC65816* cpu); 
+static void op_ldx_16(WDC65816* cpu); 
+
+static void schedule_ldy_8(WDC65816* cpu); 
+static void schedule_ldy_16(WDC65816* cpu);
+static void op_ldy_8(WDC65816* cpu); 
+static void op_ldy_16(WDC65816* cpu); 
+
+static void schedule_ora_8(WDC65816* cpu); 
+static void schedule_ora_16(WDC65816* cpu);
+static void op_ora_8(WDC65816* cpu); 
+static void op_ora_16(WDC65816* cpu); 
+
+static void schedule_ora_8(WDC65816* cpu); 
+static void schedule_ora_16(WDC65816* cpu);
+static void op_ora_8(WDC65816* cpu); 
+static void op_ora_16(WDC65816* cpu); 
+
+static void schedule_adc_8(WDC65816* cpu); 
+static void schedule_adc_16(WDC65816* cpu);
+static void op_adc_8(WDC65816* cpu); 
+static void op_adc_16(WDC65816* cpu); 
+
+static void schedule_sbc_8(WDC65816* cpu); 
+static void schedule_sbc_16(WDC65816* cpu);
+static void op_sbc_8(WDC65816* cpu); 
+static void op_sbc_16(WDC65816* cpu); 
+
+
+static void schedule_asl_a_8(WDC65816* cpu); 
+static void schedule_asl_a_16(WDC65816* cpu);
+static void schedule_asl_rmw_8(WDC65816* cpu); 
+static void schedule_asl_rmw_16(WDC65816* cpu);
+static void op_asl_8(WDC65816* cpu); 
+static void op_asl_16(WDC65816* cpu); 
+
+static void schedule_dec_a_8(WDC65816* cpu); 
+static void schedule_dec_a_16(WDC65816* cpu);
+static void schedule_dec_rmw_8(WDC65816* cpu); 
+static void schedule_dec_rmw_16(WDC65816* cpu);
+static void op_dec_8(WDC65816* cpu); 
+static void op_dec_16(WDC65816* cpu); 
+
+static void schedule_inc_a_8(WDC65816* cpu); 
+static void schedule_inc_a_16(WDC65816* cpu);
+static void schedule_inc_rmw_8(WDC65816* cpu); 
+static void schedule_inc_rmw_16(WDC65816* cpu);
+static void op_inc_8(WDC65816* cpu); 
+static void op_inc_16(WDC65816* cpu); 
+
+static void schedule_rol_a_8(WDC65816* cpu); 
+static void schedule_rol_a_16(WDC65816* cpu);
+static void schedule_rol_rmw_8(WDC65816* cpu); 
+static void schedule_rol_rmw_16(WDC65816* cpu);
+static void op_rol_8(WDC65816* cpu); 
+static void op_rol_16(WDC65816* cpu); 
+
+static void schedule_ror_a_8(WDC65816* cpu); 
+static void schedule_ror_a_16(WDC65816* cpu);
+static void schedule_ror_rmw_8(WDC65816* cpu); 
+static void schedule_ror_rmw_16(WDC65816* cpu);
+static void op_ror_8(WDC65816* cpu); 
+static void op_ror_16(WDC65816* cpu); 
+
+static void schedule_trb_rmw_8(WDC65816* cpu); 
+static void schedule_trb_rmw_16(WDC65816* cpu);
+static void op_trb_8(WDC65816* cpu); 
+static void op_trb_16(WDC65816* cpu); 
+
+static void schedule_tsb_rmw_8(WDC65816* cpu); 
+static void schedule_tsb_rmw_16(WDC65816* cpu);
+static void op_tsb_8(WDC65816* cpu); 
+static void op_tsb_16(WDC65816* cpu); 
+
+static void schedule_lsr_a_8(WDC65816* cpu); 
+static void schedule_lsr_a_16(WDC65816* cpu);
+static void schedule_lsr_rmw_8(WDC65816* cpu); 
+static void schedule_lsr_rmw_16(WDC65816* cpu);
+static void op_lsr(WDC65816* cpu); 
+
 
 static void schedule_branch(WDC65816* cpu);
 static void branch_1(WDC65816* cpu);
@@ -79,31 +168,37 @@ static void interrupt_7(WDC65816* cpu);
 static void schedule_brk(WDC65816* cpu);
 static void schedule_cop(WDC65816* cpu);
 
-static void schedule_flag_clear(WDC65816* cpu);
-static void flag_clear_1(WDC65816* cpu);
-
-static void schedule_flag_set(WDC65816* cpu);
-static void flag_set_1(WDC65816* cpu);
-
 static void schedule_clc(WDC65816* cpu);
-static void schedule_clv(WDC65816* cpu);
-static void schedule_cli(WDC65816* cpu);
+static void clc_1(WDC65816* cpu);
+
 static void schedule_cld(WDC65816* cpu);
+static void cld_1(WDC65816* cpu);
 
-static void schedule_cpx(WDC65816* cpu);
-static void schedule_cpy(WDC65816* cpu);
+static void schedule_cli(WDC65816* cpu);
+static void cli_1(WDC65816* cpu);
 
-static void schedule_dex(WDC65816* cpu);
-static void schedule_dey(WDC65816* cpu);
+static void schedule_clv(WDC65816* cpu);
+static void clv_1(WDC65816* cpu);
 
-static void schedule_inc(WDC65816* cpu);
-static void schedule_inc_a(WDC65816* cpu);
+static void schedule_dex_8(WDC65816* cpu);
+static void schedule_dex_16(WDC65816* cpu);
+static void dex_8_1(WDC65816* cpu);
+static void dex_16_1(WDC65816* cpu);
 
-static void schedule_inx(WDC65816* cpu);
-static void schedule_iny(WDC65816* cpu);
+static void schedule_dey_8(WDC65816* cpu);
+static void schedule_dey_16(WDC65816* cpu);
+static void dey_8_1(WDC65816* cpu);
+static void dey_16_1(WDC65816* cpu);
 
-static void schedule_ldx(WDC65816* cpu);
-static void schedule_ldy(WDC65816* cpu);
+static void schedule_inx_8(WDC65816* cpu);
+static void schedule_inx_16(WDC65816* cpu);
+static void inx_8_1(WDC65816* cpu);
+static void inx_16_1(WDC65816* cpu);
+
+static void schedule_iny_8(WDC65816* cpu);
+static void schedule_iny_16(WDC65816* cpu);
+static void iny_8_1(WDC65816* cpu);
+static void iny_16_1(WDC65816* cpu);
 
 static void schedule_jmp_a(WDC65816* cpu);
 static void jmp_a_1(WDC65816* cpu);
@@ -176,18 +271,22 @@ static void per_1(WDC65816* cpu);
 static void per_2(WDC65816* cpu);
 static void per_3(WDC65816* cpu);
 
-static void schedule_pha(WDC65816* cpu);
 static void schedule_phb(WDC65816* cpu);
 static void schedule_phd(WDC65816* cpu);
 static void schedule_phk(WDC65816* cpu);
 static void schedule_php(WDC65816* cpu);
 
-static void schedule_push_index(WDC65816* cpu);
+static void schedule_pha_8(WDC65816* cpu);
+static void schedule_pha_16(WDC65816* cpu);
 
-static void schedule_phx(WDC65816* cpu);
-static void schedule_phy(WDC65816* cpu);
+static void schedule_phx_8(WDC65816* cpu);
+static void schedule_phx_16(WDC65816* cpu);
 
-static void schedule_pla(WDC65816* cpu);
+static void schedule_phy_8(WDC65816* cpu);
+static void schedule_phy_16(WDC65816* cpu);
+
+static void schedule_pla_8(WDC65816* cpu);
+static void schedule_pla_16(WDC65816* cpu);
 static void pla_8_1(WDC65816* cpu);
 static void pla_16_1(WDC65816* cpu);
 static void pla_16_2(WDC65816* cpu);
@@ -202,13 +301,17 @@ static void pld_2(WDC65816* cpu);
 static void schedule_plp(WDC65816* cpu);
 static void plp_1(WDC65816* cpu);
 
-static void schedule_pull_index(WDC65816* cpu);
-static void pull_index_8_1(WDC65816* cpu);
-static void pull_index_16_1(WDC65816* cpu);
-static void pull_index_16_2(WDC65816* cpu);
+static void schedule_plx_8(WDC65816* cpu);
+static void schedule_plx_16(WDC65816* cpu);
+static void plx_8_1(WDC65816* cpu);
+static void plx_16_1(WDC65816* cpu);
+static void plx_16_2(WDC65816* cpu);
 
-static void schedule_plx(WDC65816* cpu);
-static void schedule_ply(WDC65816* cpu);
+static void schedule_ply_8(WDC65816* cpu);
+static void schedule_ply_16(WDC65816* cpu);
+static void ply_8_1(WDC65816* cpu);
+static void ply_16_1(WDC65816* cpu);
+static void ply_16_2(WDC65816* cpu);
 
 static void schedule_rep(WDC65816* cpu);
 static void rep_1(WDC65816* cpu);
@@ -229,32 +332,45 @@ static void rti_3(WDC65816* cpu);
 static void rti_4(WDC65816* cpu);
 
 static void schedule_sec(WDC65816* cpu);
+static void sec_1(WDC65816* cpu);
+
 static void schedule_sed(WDC65816* cpu);
+static void sed_1(WDC65816* cpu);
+
 static void schedule_sei(WDC65816* cpu);
+static void sei_1(WDC65816* cpu);
 
 static void schedule_sep(WDC65816* cpu);
 static void sep_1(WDC65816* cpu);
 static void sep_2(WDC65816* cpu);
 
-static void schedule_store(WDC65816* cpu);
-static void store_8_1(WDC65816* cpu);
-static void store_16_1(WDC65816* cpu);
-static void store_16_2(WDC65816* cpu);
+static void schedule_store_op_8(WDC65816* cpu);
+static void schedule_store_op_16(WDC65816* cpu);
+static void store_op_8_1(WDC65816* cpu);
+static void store_op_16_1(WDC65816* cpu);
+static void store_op_16_2(WDC65816* cpu);
 
-static void schedule_sta(WDC65816* cpu);
-static void schedule_stz(WDC65816* cpu);
+static void schedule_sta_8(WDC65816* cpu);
+static void schedule_sta_16(WDC65816* cpu);
 
-static void schedule_store_indirect(WDC65816* cpu);
+static void schedule_stz_8(WDC65816* cpu);
+static void schedule_stz_16(WDC65816* cpu);
 
-static void schedule_stx(WDC65816* cpu);
-static void schedule_sty(WDC65816* cpu);
+static void schedule_stx_8(WDC65816* cpu);
+static void schedule_stx_16(WDC65816* cpu);
 
-static void schedule_ta_index(WDC65816* cpu);
-static void ta_index_8_1(WDC65816* cpu);
-static void ta_index_16_1(WDC65816* cpu);
+static void schedule_sty_8(WDC65816* cpu);
+static void schedule_sty_16(WDC65816* cpu);
 
-static void schedule_tay(WDC65816* cpu);
-static void schedule_tax(WDC65816* cpu);
+static void schedule_tax_8(WDC65816* cpu);
+static void schedule_tax_16(WDC65816* cpu);
+static void tax_8_1(WDC65816* cpu);
+static void tax_16_1(WDC65816* cpu);
+
+static void schedule_tay_8(WDC65816* cpu);
+static void schedule_tay_16(WDC65816* cpu);
+static void tay_8_1(WDC65816* cpu);
+static void tay_16_1(WDC65816* cpu);
 
 static void schedule_tcd(WDC65816* cpu);
 static void tcd_1(WDC65816* cpu);
@@ -265,3 +381,45 @@ static void tcs_1(WDC65816* cpu);
 static void schedule_tdc(WDC65816* cpu);
 static void tdc_1(WDC65816* cpu);
 
+static void schedule_tsc(WDC65816* cpu);
+static void tsc_1(WDC65816* cpu);
+
+static void schedule_tsx_8(WDC65816* cpu);
+static void schedule_tsx_16(WDC65816* cpu);
+static void tsx_8_1(WDC65816* cpu);
+static void tsx_16_1(WDC65816* cpu);
+
+static void schedule_txa_8(WDC65816* cpu);
+static void schedule_txa_16(WDC65816* cpu);
+static void txa_8_1(WDC65816* cpu);
+static void txa_16_1(WDC65816* cpu);
+
+static void schedule_txs(WDC65816* cpu);
+static void txs_1(WDC65816* cpu);
+
+static void schedule_txy_8(WDC65816* cpu);
+static void schedule_txy_16(WDC65816* cpu);
+static void txy_8_1(WDC65816* cpu);
+static void txy_16_1(WDC65816* cpu);
+
+static void schedule_tya_8(WDC65816* cpu);
+static void schedule_tya_16(WDC65816* cpu);
+static void tya_8_1(WDC65816* cpu);
+static void tya_16_1(WDC65816* cpu);
+
+static void schedule_tyx_8(WDC65816* cpu);
+static void schedule_tyx_16(WDC65816* cpu);
+static void tyx_8_1(WDC65816* cpu);
+static void tyx_16_1(WDC65816* cpu);
+
+static void schedule_wai(WDC65816* cpu);
+static void wai_1(WDC65816* cpu);
+
+static void schedule_wdm(WDC65816* cpu);
+static void wdm_1(WDC65816* cpu);
+
+static void schedule_xba(WDC65816* cpu);
+static void xba_1(WDC65816* cpu);
+
+static void schedule_xce(WDC65816* cpu);
+static void xce_1(WDC65816* cpu);

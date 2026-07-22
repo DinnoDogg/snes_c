@@ -14,14 +14,7 @@ typedef void (*WDC65816_cycle_handler)(WDC65816* cpu);
 typedef void (*WDC65816_address_scheduler)(WDC65816* cpu);
 typedef void (*WDC65816_op_scheduler)(WDC65816* cpu);
 
-typedef uint16_t (*WDC65816_algorithm_callback)(WDC65816* cpu, uint16_t source);
-
-typedef struct WDC65816_op {
-    WDC65816_address_scheduler schedule_address;
-    WDC65816_op_scheduler schedule_op;
-    
-    bool dummy_read;
-} WDC65816_op;
+typedef void (*WDC65816_op_callback)(WDC65816* cpu);
 
 typedef enum WDC65816_flag {
     FLAG_C, FLAG_Z, FLAG_I, FLAG_D, FLAG_X, FLAG_M, FLAG_V, FLAG_N
@@ -55,27 +48,22 @@ struct WDC65816 {
     WDC65816_cycle_handler cycle_lookup[0x8];
 
     register_pair* index_register;
-    register_pair* operand_register;
 
-    WDC65816_algorithm_callback op_algorithm;
+    WDC65816_op_callback op_callback;
 
     WDC65816_vector interrupt_vector;
-    WDC65816_flag operation_flag;
 
     uint32_t operand_address : 24;
     uint32_t indirect_address : 24; 
     uint16_t operand;
 
-    uint8_t* stack_target_8;
-    uint16_t* stack_target_16;
-
     bool take_branch;
     int16_t branch_offset;
 
-    bool data_width_byte;
-    
-    uint8_t current_cycle;
-    uint8_t cycle_lookup_index;
+    int current_cycle;
+    int cycle_lookup_index;
+
+    int master_cycles_elapsed;
 
     read_callback read;
     write_callback write;
@@ -86,6 +74,9 @@ struct WDC65816 {
     bool irq_line;
 
     bool irq_pending;
+    bool wai;
+
+    bool emulation_mode;
 };
 
 void init_wdc65816(WDC65816* cpu, read_callback read, write_callback write);
