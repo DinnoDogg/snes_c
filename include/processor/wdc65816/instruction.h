@@ -19,7 +19,6 @@ static void rmw_mem_16_1(WDC65816* cpu);
 static void rmw_mem_16_2(WDC65816* cpu);
 
 
-
 static void schedule_and_8(WDC65816* cpu); 
 static void schedule_and_16(WDC65816* cpu);
 static void op_and_8(WDC65816* cpu); 
@@ -136,7 +135,6 @@ static void schedule_lsr_a_16(WDC65816* cpu);
 static void schedule_lsr_rmw_8(WDC65816* cpu); 
 static void schedule_lsr_rmw_16(WDC65816* cpu);
 static void op_lsr(WDC65816* cpu); 
-
 
 static void schedule_branch(WDC65816* cpu);
 static void branch_1(WDC65816* cpu);

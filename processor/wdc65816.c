@@ -588,7 +588,6 @@ void transfer_16(WDC65816* cpu, uint16_t source, uint16_t* dest) {
     set_nz_word(cpu, source);
 }
 
-
 bool page_crossed(uint32_t address_a, uint32_t address_b) {
     return (address_a & 0xFFFF00) != (address_b & 0xFFFF00);
 }
@@ -2612,9 +2611,7 @@ void op_adc_16(WDC65816* cpu) {
     set_nz_word(cpu, result);
 
     cpu->registers.a.word = result & 0xFFFF;
-    
 }
-
 
 void schedule_sbc_8(WDC65816* cpu) {
     cpu->op_callback = &op_sbc_8;

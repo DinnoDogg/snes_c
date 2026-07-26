@@ -10,10 +10,6 @@ typedef uint8_t (*read_callback)(uint32_t address);
 typedef void (*write_callback)(uint32_t address, uint8_t data);
 
 typedef void (*WDC65816_cycle_handler)(WDC65816* cpu);
-
-typedef void (*WDC65816_address_scheduler)(WDC65816* cpu);
-typedef void (*WDC65816_op_scheduler)(WDC65816* cpu);
-
 typedef void (*WDC65816_op_callback)(WDC65816* cpu);
 
 typedef enum WDC65816_flag {
