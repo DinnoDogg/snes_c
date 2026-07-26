@@ -1357,6 +1357,5 @@ void nop(SPC700* cpu) {
     return;
 }
 
-
 #undef EXEC_OP
 #undef EXEC_OP_IMPL
