@@ -44,8 +44,6 @@ const static int cycle_table[0x100] = {
 
 static bool get_bit(int value, int index);
 
-static int get_instruction_time(uint8_t opcode);
-
 static uint16_t get_ya(SPC700* cpu);
 static void set_ya(SPC700* cpu, uint16_t value);
 
@@ -94,20 +92,35 @@ static uint8_t algorithm_lsr(SPC700* cpu, uint8_t operand);
 static uint8_t algorithm_rol(SPC700* cpu, uint8_t operand);
 static uint8_t algorithm_ror(SPC700* cpu, uint8_t operand);
 
-void init_spc700(SPC700* cpu, read_callback read, write_callback write) {
-    cpu->read = read;
-    cpu->write = write;
+void init_spc700(SPC700* cpu, void* bus) {
+    cpu->bus = bus;
 }
 
 bool get_bit(int value, int index) {
     return (value >> index) & 0x1;
 }
 
-int spc700_run_instruction(SPC700* cpu) {
+int spc700_run_immediate(SPC700* cpu) {
     uint8_t opcode = read_immediate(cpu);
+    spc700_run_instruction(cpu, opcode);
+    return cpu->cycle_count;
+}
 
-    cpu->cycle_count = get_instruction_time(opcode);
+uint8_t spc700_run_immediate_get_next_op(SPC700* cpu) {
+    uint8_t opcode = read_immediate(cpu);
+    spc700_run_instruction(cpu, opcode);
+    return read_immediate(cpu);
+}
+
+uint8_t spc700_read_immediate(SPC700* cpu) {
+    return read_immediate(cpu);
+}
+
+void spc700_run_instruction(SPC700* cpu, uint8_t opcode) {
     cpu->opcode = opcode;
+    cpu->cycle_count = spc700_get_op_time(opcode);
+
+    //printf("SPC Opcode: %02X\n", opcode);
 
     switch (opcode) {
         EXEC_OP(0xE8, addr_imm, mov_a_mem, false);
@@ -415,8 +428,6 @@ int spc700_run_instruction(SPC700* cpu) {
 
         default: nop(cpu);
     }
-
-    return cpu->cycle_count;
 }
 
 void spc700_print_state(SPC700* cpu) {
@@ -469,11 +480,11 @@ void set_flag(SPC700* cpu, SPC700_flag flag, bool value) {
 }
 
 uint8_t read(SPC700* cpu, uint16_t address) {
-    return cpu->read(address);
+    return cpu->bus->read(cpu->bus, address);
 }
 
 void write(SPC700* cpu, uint16_t address, uint8_t data) {
-    cpu->write(address, data);
+    cpu->bus->write(cpu->bus, address, data);
 }
 
 uint8_t read_immediate(SPC700* cpu) {
@@ -534,6 +545,8 @@ void handle_branch(SPC700* cpu, bool take_branch) {
         cpu->registers.pc += offset;
         cpu->cycle_count += 2;
     }
+
+    cpu->branch_taken = take_branch;
 }
 
 uint8_t algorithm_adc(SPC700* cpu, uint8_t operand_a, uint8_t operand_b) {
@@ -619,7 +632,7 @@ void set_nz_16(SPC700* cpu, uint16_t value) {
     set_flag(cpu, FLAG_Z, value == 0);
 }
 
-int get_instruction_time(uint8_t opcode) {
+int spc700_get_op_time(uint8_t opcode) {
     return cycle_table[opcode];
 }
 
