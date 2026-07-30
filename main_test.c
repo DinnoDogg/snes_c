@@ -6,12 +6,24 @@
 
 #include "include/processor/wdc65816/wdc65816.h"
 
+static unsigned int g_seed;
+
+// Used to seed the generator.           
+
+// Compute a pseudorandom integer.
+// Output value in range [0, 32767]
+int fast_rand(void) {
+    g_seed = (214013*g_seed+2531011);
+    return (g_seed>>16)&0x7FFF;
+}
+
+
 static long get_nanos(struct timespec* ts) {
     return (long)ts->tv_sec * 1000000000L + ts->tv_nsec;
 }
 
 static uint8_t test_read(uint32_t address) {
-    return rand() & 0xFF;
+    return fast_rand() & 0xFF;
 }
 
 static void test_write(uint32_t address, uint8_t data) {
@@ -22,7 +34,7 @@ int main() {
     snes* snes = new_snes();
     struct timespec ts;
 
-    srand(time(NULL));
+    g_seed = time(NULL);
 
     int relative_time = 0, master_time = 0;
 
