@@ -19,10 +19,18 @@ void test_schedule_spc(void* testy) {
     SPC700* test_spc = (SPC700*) snes_test->apu;
 
     uint8_t opcode = spc700_read_immediate(test_spc);
-    int exec_in = spc700_get_op_time(opcode) - 1;
+    int exec_in = spc700_get_op_time(opcode);
+
+    //printf("OP %02X %u\n", opcode, exec_in);
+
+    exec_in *= 21;
+
+    if (test_spc->branch_taken) {
+        test_spc->branch_taken = false;
+        exec_in += 42;
+    }
 
     test_spc->opcode = opcode;
-    exec_in *= 21;
 
     schedule_event(snes_test->s, exec_in, &test_spc_run_op);
 }
@@ -38,11 +46,13 @@ void test_spc_run_op(void* testy) {
 
 int main() {
     test_snes testy = {
-        new_scheduler(0x100),
+        new_scheduler(0xF),
         new_apu(audio_ram)
     };
 
-    test_schedule_spc(&testy);
+    testy.apu->base.opcode = spc700_read_immediate((SPC700*) testy.apu);
+    int exec_in = spc700_get_op_time(testy.apu->base.opcode) - 1;
+    schedule_event(testy.s, exec_in, &test_spc_run_op);
 
     int t = 0;
     int master_cycles = 0;
