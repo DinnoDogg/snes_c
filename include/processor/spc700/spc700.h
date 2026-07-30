@@ -4,16 +4,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef uint8_t (*read_callback)(void* bus, uint16_t address);
-typedef void (*write_callback)(void* bus, uint16_t address, uint8_t data);
+typedef uint8_t (*SPC700_read_callback)(void* bus, uint16_t address);
+typedef void (*SPC700_write_callback)(void* bus, uint16_t address, uint8_t data);
 
 typedef enum SPC700_flag {
-    FLAG_C, FLAG_Z, FLAG_I, FLAG_H, FLAG_B, FLAG_P, FLAG_V, FLAG_N
+    SPC_FLAG_C, SPC_FLAG_Z, SPC_FLAG_I, SPC_FLAG_H, SPC_FLAG_B, SPC_FLAG_P, SPC_FLAG_V, SPC_FLAG_N
 } SPC700_flag;
 
 typedef struct SPC700_bus {
-    read_callback read;
-    write_callback write;
+    SPC700_read_callback read;
+    SPC700_write_callback write;
 } SPC700_bus;
 
 typedef struct SPC700 {

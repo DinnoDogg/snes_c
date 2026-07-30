@@ -428,13 +428,13 @@ void spc700_print_state(SPC700* cpu) {
 
     printf("PSW: %u\n\n", cpu->registers.psw);
 
-    printf("N: %u\n", get_flag(cpu, FLAG_N));
-    printf("V: %u\n", get_flag(cpu, FLAG_V));
-    printf("P: %u\n", get_flag(cpu, FLAG_P));
-    printf("H: %u\n", get_flag(cpu, FLAG_H));
-    printf("I: %u\n", get_flag(cpu, FLAG_I));
-    printf("Z: %u\n", get_flag(cpu, FLAG_Z));
-    printf("C: %u\n\n", get_flag(cpu, FLAG_C));
+    printf("N: %u\n", get_flag(cpu, SPC_FLAG_N));
+    printf("V: %u\n", get_flag(cpu, SPC_FLAG_V));
+    printf("P: %u\n", get_flag(cpu, SPC_FLAG_P));
+    printf("H: %u\n", get_flag(cpu, SPC_FLAG_H));
+    printf("I: %u\n", get_flag(cpu, SPC_FLAG_I));
+    printf("Z: %u\n", get_flag(cpu, SPC_FLAG_Z));
+    printf("C: %u\n\n", get_flag(cpu, SPC_FLAG_C));
 
     printf("Operand address: %u\n\n", cpu->operand_address);
     printf("Operand: %u\n\n", cpu->operand);
@@ -451,7 +451,7 @@ void set_ya(SPC700* cpu, uint16_t value) {
 }
 
 int get_dp_base(SPC700* cpu) {
-    bool p = get_flag(cpu, FLAG_P);
+    bool p = get_flag(cpu, SPC_FLAG_P);
     return direct_page_base[p];
 }
 
@@ -538,11 +538,11 @@ void handle_branch(SPC700* cpu, bool take_branch) {
 }
 
 uint8_t algorithm_adc(SPC700* cpu, uint8_t operand_a, uint8_t operand_b) {
-    bool h = (operand_a & 0xF) + (operand_b & 0xF) + get_flag(cpu, FLAG_C) > 0xF;
-    int result = operand_a + operand_b + get_flag(cpu, FLAG_C);
-    set_flag(cpu, FLAG_H, h);
-    set_flag(cpu, FLAG_C, result > 0xFF);
-    set_flag(cpu, FLAG_V, (result ^ operand_a) & (result ^ operand_b) & 0x80);
+    bool h = (operand_a & 0xF) + (operand_b & 0xF) + get_flag(cpu, SPC_FLAG_C) > 0xF;
+    int result = operand_a + operand_b + get_flag(cpu, SPC_FLAG_C);
+    set_flag(cpu, SPC_FLAG_H, h);
+    set_flag(cpu, SPC_FLAG_C, result > 0xFF);
+    set_flag(cpu, SPC_FLAG_V, (result ^ operand_a) & (result ^ operand_b) & 0x80);
     set_nz_8(cpu, result);
     return result & 0xFF;
 }
@@ -555,7 +555,7 @@ uint8_t algorithm_sbc(SPC700* cpu, uint8_t operand_a, uint8_t operand_b) {
 uint8_t algorithm_cmp(SPC700* cpu, uint8_t operand_a, uint8_t operand_b) {
     operand_b = ~operand_b;
     int result = operand_a + operand_b + 1;
-    set_flag(cpu, FLAG_C, result > 0xFF);
+    set_flag(cpu, SPC_FLAG_C, result > 0xFF);
     set_nz_8(cpu, result);
     return result & 0xFF;
 }
@@ -581,7 +581,7 @@ uint8_t algorithm_eor(SPC700* cpu, uint8_t operand_a, uint8_t operand_b) {
 uint8_t algorithm_asl(SPC700* cpu, uint8_t operand) {
     uint8_t result = operand << 1;
     bool c = operand >> 7;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, SPC_FLAG_C, c);
     set_nz_8(cpu, result);
     return result;
 }
@@ -589,35 +589,35 @@ uint8_t algorithm_asl(SPC700* cpu, uint8_t operand) {
 uint8_t algorithm_lsr(SPC700* cpu, uint8_t operand) {
     uint8_t result = operand >> 1;
     bool c = operand & 0x1;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, SPC_FLAG_C, c);
     set_nz_8(cpu, result);
     return result;
 }
 
 uint8_t algorithm_rol(SPC700* cpu, uint8_t operand) {
-    uint8_t result = (operand << 1) | get_flag(cpu, FLAG_C);
+    uint8_t result = (operand << 1) | get_flag(cpu, SPC_FLAG_C);
     bool c = operand >> 7;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, SPC_FLAG_C, c);
     set_nz_8(cpu, result);
     return result;
 }
 
 uint8_t algorithm_ror(SPC700* cpu, uint8_t operand) {
-    uint8_t result = (operand >> 1) | get_flag(cpu, FLAG_C) << 7;
+    uint8_t result = (operand >> 1) | get_flag(cpu, SPC_FLAG_C) << 7;
     bool c = operand & 0x1;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, SPC_FLAG_C, c);
     set_nz_8(cpu, result);
     return result;
 }
 
 void set_nz_8(SPC700* cpu, uint8_t value) {
-    set_flag(cpu, FLAG_N, value >> 0x7);
-    set_flag(cpu, FLAG_Z, value == 0);
+    set_flag(cpu, SPC_FLAG_N, value >> 0x7);
+    set_flag(cpu, SPC_FLAG_Z, value == 0);
 }
 
 void set_nz_16(SPC700* cpu, uint16_t value) {
-    set_flag(cpu, FLAG_N, value >> 0xF);
-    set_flag(cpu, FLAG_Z, value == 0);
+    set_flag(cpu, SPC_FLAG_N, value >> 0xF);
+    set_flag(cpu, SPC_FLAG_Z, value == 0);
 }
 
 int spc700_get_op_time(uint8_t opcode) {
@@ -1003,9 +1003,9 @@ void addw_dp(SPC700* cpu) {
     uint16_t ya = get_ya(cpu); 
     bool h = (ya & 0xFFF) + (cpu->operand & 0xFFF) > 0xFFF;
     int result = get_ya(cpu) + cpu->operand;
-    set_flag(cpu, FLAG_H, h);
-    set_flag(cpu, FLAG_V, (result ^ ya) & (result ^ cpu->operand) & 0x8000);
-    set_flag(cpu, FLAG_C, result > 0xFFFF);
+    set_flag(cpu, SPC_FLAG_H, h);
+    set_flag(cpu, SPC_FLAG_V, (result ^ ya) & (result ^ cpu->operand) & 0x8000);
+    set_flag(cpu, SPC_FLAG_C, result > 0xFFFF);
     set_nz_16(cpu, result);
     set_ya(cpu, result & 0xFFFF);
 }
@@ -1017,9 +1017,9 @@ void subw_dp(SPC700* cpu) {
     uint16_t ya = get_ya(cpu); 
     bool h = (ya & 0xFFF) + (cpu->operand & 0xFFF) > 0xFFF;
     int result = get_ya(cpu) + cpu->operand + 1;
-    set_flag(cpu, FLAG_H, h);
-    set_flag(cpu, FLAG_V, (result ^ ya) & (result ^ cpu->operand) & 0x8000);
-    set_flag(cpu, FLAG_C, result > 0xFFFF);
+    set_flag(cpu, SPC_FLAG_H, h);
+    set_flag(cpu, SPC_FLAG_V, (result ^ ya) & (result ^ cpu->operand) & 0x8000);
+    set_flag(cpu, SPC_FLAG_C, result > 0xFFFF);
     set_nz_16(cpu, result);
     set_ya(cpu, result & 0xFFFF);
 }
@@ -1028,7 +1028,7 @@ void cmpw_dp(SPC700* cpu) {
     load_operand_dp_16(cpu);
     cpu->operand = ~cpu->operand;
     int result = get_ya(cpu) + cpu->operand + 1;
-    set_flag(cpu, FLAG_C, result > 0xFFFF);
+    set_flag(cpu, SPC_FLAG_C, result > 0xFFFF);
     set_nz_16(cpu, result);
 }
 
@@ -1042,7 +1042,7 @@ void div_ya(SPC700* cpu) {
     int yva = get_ya(cpu);
     int x = (cpu->registers.x << 9) & 0x1FFFF;
 
-    set_flag(cpu, FLAG_H, (cpu->registers.x & 0xF) <= (cpu->registers.y & 0xF));
+    set_flag(cpu, SPC_FLAG_H, (cpu->registers.x & 0xF) <= (cpu->registers.y & 0xF));
 
     for (int i = 0; i < 9; i++) {
         bool c = yva >> 0x10;
@@ -1059,17 +1059,17 @@ void div_ya(SPC700* cpu) {
 
     cpu->registers.a = a;
     cpu->registers.y = y;
-    set_flag(cpu, FLAG_V, v);
+    set_flag(cpu, SPC_FLAG_V, v);
     set_nz_8(cpu, a);
 }
 
 void daa(SPC700* cpu) {
-    if (get_flag(cpu, FLAG_C) || cpu->registers.a > 0x99) {
+    if (get_flag(cpu, SPC_FLAG_C) || cpu->registers.a > 0x99) {
         cpu->registers.a += 0x60;
-        set_flag(cpu, FLAG_C, true);
+        set_flag(cpu, SPC_FLAG_C, true);
     }
 
-    if (get_flag(cpu, FLAG_H) || (cpu->registers.a & 0xF) > 0x09) {
+    if (get_flag(cpu, SPC_FLAG_H) || (cpu->registers.a & 0xF) > 0x09) {
         cpu->registers.a += 0x06;
     }
 
@@ -1077,12 +1077,12 @@ void daa(SPC700* cpu) {
 }
 
 void das(SPC700* cpu) {
-    if (!get_flag(cpu, FLAG_C) || cpu->registers.a > 0x99) {
+    if (!get_flag(cpu, SPC_FLAG_C) || cpu->registers.a > 0x99) {
         cpu->registers.a -= 0x60;
-        set_flag(cpu, FLAG_C, false);
+        set_flag(cpu, SPC_FLAG_C, false);
     }
 
-    if (!get_flag(cpu, FLAG_H) || (cpu->registers.a & 0xF) > 0x09) {
+    if (!get_flag(cpu, SPC_FLAG_H) || (cpu->registers.a & 0xF) > 0x09) {
         cpu->registers.a -= 0x06;
     }
 
@@ -1094,35 +1094,35 @@ void bra(SPC700* cpu) {
 }
 
 void beq(SPC700* cpu) {
-    handle_branch(cpu, get_flag(cpu, FLAG_Z));
+    handle_branch(cpu, get_flag(cpu, SPC_FLAG_Z));
 }
 
 void bne(SPC700* cpu) {
-    handle_branch(cpu, !get_flag(cpu, FLAG_Z));
+    handle_branch(cpu, !get_flag(cpu, SPC_FLAG_Z));
 }
 
 void bcs(SPC700* cpu) {
-    handle_branch(cpu, get_flag(cpu, FLAG_C));
+    handle_branch(cpu, get_flag(cpu, SPC_FLAG_C));
 }
 
 void bcc(SPC700* cpu) {
-    handle_branch(cpu, !get_flag(cpu, FLAG_C));
+    handle_branch(cpu, !get_flag(cpu, SPC_FLAG_C));
 }
 
 void bvs(SPC700* cpu) {
-    handle_branch(cpu, get_flag(cpu, FLAG_V));
+    handle_branch(cpu, get_flag(cpu, SPC_FLAG_V));
 }
 
 void bvc(SPC700* cpu) {
-    handle_branch(cpu, !get_flag(cpu, FLAG_V));
+    handle_branch(cpu, !get_flag(cpu, SPC_FLAG_V));
 }
 
 void bmi(SPC700* cpu) {
-    handle_branch(cpu, get_flag(cpu, FLAG_N));
+    handle_branch(cpu, get_flag(cpu, SPC_FLAG_N));
 }
 
 void bpl(SPC700* cpu) {
-    handle_branch(cpu, !get_flag(cpu, FLAG_N));
+    handle_branch(cpu, !get_flag(cpu, SPC_FLAG_N));
 }
 
 void bbs(SPC700* cpu) {
@@ -1188,8 +1188,8 @@ void brk(SPC700* cpu) {
     push_stack(cpu, cpu->registers.pc >> 8);
     push_stack(cpu, cpu->registers.pc & 0xFF);
     push_stack(cpu, cpu->registers.psw);
-    set_flag(cpu, FLAG_B, true);
-    set_flag(cpu, FLAG_I, false);
+    set_flag(cpu, SPC_FLAG_B, true);
+    set_flag(cpu, SPC_FLAG_I, false);
     cpu->registers.pc = read(cpu, 0xFFDE);
     cpu->registers.pc |= read(cpu, 0xFFDF) << 8;
 }
@@ -1268,32 +1268,32 @@ void tclr1(SPC700* cpu) {
 
 void and1(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    bool result = get_flag(cpu, FLAG_C) && get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, result);
+    bool result = get_flag(cpu, SPC_FLAG_C) && get_bit(cpu->operand, index);
+    set_flag(cpu, SPC_FLAG_C, result);
 }
 
 void nand1(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    bool result = get_flag(cpu, FLAG_C) && !get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, result);
+    bool result = get_flag(cpu, SPC_FLAG_C) && !get_bit(cpu->operand, index);
+    set_flag(cpu, SPC_FLAG_C, result);
 }
 
 void or1(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    bool result = get_flag(cpu, FLAG_C) || get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, result);
+    bool result = get_flag(cpu, SPC_FLAG_C) || get_bit(cpu->operand, index);
+    set_flag(cpu, SPC_FLAG_C, result);
 }
 
 void nor1(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    bool result = get_flag(cpu, FLAG_C) || !get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, result);
+    bool result = get_flag(cpu, SPC_FLAG_C) || !get_bit(cpu->operand, index);
+    set_flag(cpu, SPC_FLAG_C, result);
 }
 
 void eor1(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    bool result = get_flag(cpu, FLAG_C) ^ get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, result);
+    bool result = get_flag(cpu, SPC_FLAG_C) ^ get_bit(cpu->operand, index);
+    set_flag(cpu, SPC_FLAG_C, result);
 }
 
 void not1(SPC700* cpu) {
@@ -1305,12 +1305,12 @@ void not1(SPC700* cpu) {
 void mov1_c_mem(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
     bool b = get_bit(cpu->operand, index);
-    set_flag(cpu, FLAG_C, b);
+    set_flag(cpu, SPC_FLAG_C, b);
 }
 
 void mov1_mem_c(SPC700* cpu) {
     uint8_t index = load_operand_mem_bit(cpu);
-    if (get_flag(cpu, FLAG_C)) {
+    if (get_flag(cpu, SPC_FLAG_C)) {
         cpu->operand |= 1 << index;
     }
     else {
@@ -1321,37 +1321,37 @@ void mov1_mem_c(SPC700* cpu) {
 }
 
 void clcr(SPC700* cpu) {
-    set_flag(cpu, FLAG_C, false);
+    set_flag(cpu, SPC_FLAG_C, false);
 }
 
 void setc(SPC700* cpu) {
-    set_flag(cpu, FLAG_C, true);
+    set_flag(cpu, SPC_FLAG_C, true);
 }
 
 void notc(SPC700* cpu) {
-    bool c = get_flag(cpu, FLAG_C);
-    set_flag(cpu, FLAG_C, !c);
+    bool c = get_flag(cpu, SPC_FLAG_C);
+    set_flag(cpu, SPC_FLAG_C, !c);
 }
 
 void clrv(SPC700* cpu) {
-    set_flag(cpu, FLAG_V, false);
-    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, SPC_FLAG_V, false);
+    set_flag(cpu, SPC_FLAG_H, false);
 }
 
 void clrp(SPC700* cpu) {
-    set_flag(cpu, FLAG_P, false);
+    set_flag(cpu, SPC_FLAG_P, false);
 }
 
 void sep(SPC700* cpu) {
-    set_flag(cpu, FLAG_P, true);
+    set_flag(cpu, SPC_FLAG_P, true);
 }
 
 void ei(SPC700* cpu) {
-    set_flag(cpu, FLAG_I, true);
+    set_flag(cpu, SPC_FLAG_I, true);
 }
 
 void di(SPC700* cpu) {
-    set_flag(cpu, FLAG_I, false);
+    set_flag(cpu, SPC_FLAG_I, false);
 }
 
 void nop(SPC700* cpu) {

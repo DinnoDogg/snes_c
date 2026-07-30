@@ -10,14 +10,14 @@
     case OPCODE: \
         cpu->dummy_read = DUMMY; \
         ADDR(cpu); \
-        get_flag(cpu, FLAG_M) ? INSTR##_8(cpu) : INSTR##_16(cpu); \
+        get_flag(cpu, WDC_FLAG_M) ? INSTR##_8(cpu) : INSTR##_16(cpu); \
         break
 
 #define EXEC_OP_X(OPCODE, ADDR, INSTR, DUMMY) \
     case OPCODE: \
         cpu->dummy_read = DUMMY; \
         ADDR(cpu); \
-        get_flag(cpu, FLAG_X) ? INSTR##_8(cpu) : INSTR##_16(cpu); \
+        get_flag(cpu, WDC_FLAG_X) ? INSTR##_8(cpu) : INSTR##_16(cpu); \
         break
 
 #define EXEC_OP(OPCODE, ADDR, INSTR, DUMMY) \
@@ -68,7 +68,7 @@ static void compare_reg_16(WDC65816* cpu, uint16_t reg);
 static void transfer_8(WDC65816* cpu, uint8_t source, uint8_t* dest);
 static void transfer_16(WDC65816* cpu, uint16_t source, uint16_t* dest);
 
-void init_wdc65816(WDC65816* cpu, read_callback read, write_callback write) {
+void init_wdc65816(WDC65816* cpu, WDC65816_read_callback read, WDC65816_write_callback write) {
     cpu->read = read;
     cpu->write = write;
 }
@@ -89,6 +89,7 @@ void cycle_wdc65816(WDC65816* cpu) {
 
         if (cpu->wai) {
             dummy_read_pc(cpu);
+            cpu->current_cycle = 0;
             return;
         }
 
@@ -439,14 +440,14 @@ void wdc65816_print_state(WDC65816* cpu) {
 
     printf("P: %u\n\n", cpu->registers.p);
 
-    printf("N: %u\n", get_flag(cpu, FLAG_N));
-    printf("V: %u\n", get_flag(cpu, FLAG_V));
-    printf("M: %u\n", get_flag(cpu, FLAG_M));
-    printf("X: %u\n", get_flag(cpu, FLAG_X));
-    printf("D: %u\n", get_flag(cpu, FLAG_D));
-    printf("I: %u\n", get_flag(cpu, FLAG_I));
-    printf("Z: %u\n", get_flag(cpu, FLAG_Z));
-    printf("C: %u\n\n", get_flag(cpu, FLAG_C));
+    printf("N: %u\n", get_flag(cpu, WDC_FLAG_N));
+    printf("V: %u\n", get_flag(cpu, WDC_FLAG_V));
+    printf("M: %u\n", get_flag(cpu, WDC_FLAG_M));
+    printf("X: %u\n", get_flag(cpu, WDC_FLAG_X));
+    printf("D: %u\n", get_flag(cpu, WDC_FLAG_D));
+    printf("I: %u\n", get_flag(cpu, WDC_FLAG_I));
+    printf("Z: %u\n", get_flag(cpu, WDC_FLAG_Z));
+    printf("C: %u\n\n", get_flag(cpu, WDC_FLAG_C));
 
     printf("Operand address: %u\n\n", cpu->operand_address);
 }
@@ -516,24 +517,24 @@ void adjust_address(WDC65816* cpu) {
 }
 
 void set_nz_byte(WDC65816* cpu, uint8_t value) {
-    set_flag(cpu, FLAG_Z, value == 0);
-    set_flag(cpu, FLAG_N, value >> 7);
+    set_flag(cpu, WDC_FLAG_Z, value == 0);
+    set_flag(cpu, WDC_FLAG_N, value >> 7);
 }
 
 void set_nz_word(WDC65816* cpu, uint16_t value) {
-    set_flag(cpu, FLAG_Z, value == 0);
-    set_flag(cpu, FLAG_N, value >> 15);
+    set_flag(cpu, WDC_FLAG_Z, value == 0);
+    set_flag(cpu, WDC_FLAG_N, value >> 15);
 }
 
 void compare_reg_8(WDC65816* cpu, uint8_t reg) {
     uint8_t result = reg - cpu->operand;
-    set_flag(cpu, FLAG_C, reg >= cpu->operand);
+    set_flag(cpu, WDC_FLAG_C, reg >= cpu->operand);
     set_nz_byte(cpu, result);
 }
 
 void compare_reg_16(WDC65816* cpu, uint16_t reg) {
     uint16_t result = reg - cpu->operand;
-    set_flag(cpu, FLAG_C, reg >= cpu->operand);
+    set_flag(cpu, WDC_FLAG_C, reg >= cpu->operand);
     set_nz_word(cpu, result);
 }
 
@@ -567,7 +568,7 @@ void set_flag(WDC65816* cpu, WDC65816_flag flag, bool value) {
     if (value) {
         cpu->registers.p |= 1 << flag;
 
-        if (flag == FLAG_X) {
+        if (flag == WDC_FLAG_X) {
             cpu->registers.x.high = 0x00;
             cpu->registers.y.high = 0x00;
         }
@@ -593,7 +594,7 @@ bool page_crossed(uint32_t address_a, uint32_t address_b) {
 }
 
 void end_op(WDC65816* cpu) {
-    end_op_flag_i(cpu, get_flag(cpu, FLAG_I));
+    end_op_flag_i(cpu, get_flag(cpu, WDC_FLAG_I));
 }
 
 void end_op_flag_i(WDC65816* cpu, bool flag_i) {
@@ -634,7 +635,7 @@ void schedule_addr_a_ind(WDC65816* cpu) {
 void addr_a_ind_1(WDC65816* cpu) {
     cpu->operand_address |= read_immediate(cpu) << 8;
     
-    if (!page_crossed(cpu->operand_address, cpu->operand_address + cpu->index_register->word) && get_flag(cpu, FLAG_X) && !cpu->dummy_read) {
+    if (!page_crossed(cpu->operand_address, cpu->operand_address + cpu->index_register->word) && get_flag(cpu, WDC_FLAG_X) && !cpu->dummy_read) {
         cpu->current_cycle++;
     }
     
@@ -770,7 +771,7 @@ void schedule_addr_d_indr_y(WDC65816* cpu) {
 void addr_d_indr_y_1(WDC65816* cpu) {
     cpu->operand_address |= read(cpu, cpu->indirect_address) << 8;
 
-    if (!page_crossed(cpu->operand_address, cpu->operand_address + cpu->registers.y.word) && get_flag(cpu, FLAG_X) && !cpu->dummy_read) {
+    if (!page_crossed(cpu->operand_address, cpu->operand_address + cpu->registers.y.word) && get_flag(cpu, WDC_FLAG_X) && !cpu->dummy_read) {
         cpu->current_cycle++;
     }
     
@@ -820,13 +821,13 @@ void addr_dl_indr_y_1(WDC65816* cpu) {
 void schedule_addr_imm(WDC65816* cpu) {
     cpu->bank_mode = BANK_PROGRAM;
     cpu->operand_address = (cpu->registers.pbr << 16) | cpu->registers.pc.word++;
-    if (!get_flag(cpu, FLAG_M)) cpu->registers.pc.word++;
+    if (!get_flag(cpu, WDC_FLAG_M)) cpu->registers.pc.word++;
 }
 
 void schedule_addr_imm_x(WDC65816* cpu) {
     cpu->bank_mode = BANK_PROGRAM;
     cpu->operand_address = (cpu->registers.pbr << 16) | cpu->registers.pc.word++;
-    if (!get_flag(cpu, FLAG_X)) cpu->registers.pc.word++;
+    if (!get_flag(cpu, WDC_FLAG_X)) cpu->registers.pc.word++;
 }
 
 void schedule_addr_d_s(WDC65816* cpu) {
@@ -994,14 +995,14 @@ void op_asl_8(WDC65816* cpu) {
     bool c = cpu->operand >> 0x7;
     cpu->operand <<= 1;
     cpu->operand &= 0xFF;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_byte(cpu, cpu->operand);
 }
 
 void op_asl_16(WDC65816* cpu) {
     bool c = cpu->operand >> 0xF;
     cpu->operand <<= 1;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_word(cpu, cpu->operand);
 }
 
@@ -1025,42 +1026,42 @@ void branch_2(WDC65816* cpu) {
 }
 
 void schedule_bcc(WDC65816* cpu) {
-    cpu->take_branch = !get_flag(cpu, FLAG_C);
+    cpu->take_branch = !get_flag(cpu, WDC_FLAG_C);
     schedule_branch(cpu);
 }
 
 void schedule_bcs(WDC65816* cpu) {
-    cpu->take_branch = get_flag(cpu, FLAG_C);
+    cpu->take_branch = get_flag(cpu, WDC_FLAG_C);
     schedule_branch(cpu);
 }
 
 void schedule_bne(WDC65816* cpu) {
-    cpu->take_branch = !get_flag(cpu, FLAG_Z);
+    cpu->take_branch = !get_flag(cpu, WDC_FLAG_Z);
     schedule_branch(cpu);
 }
 
 void schedule_beq(WDC65816* cpu) {
-    cpu->take_branch = get_flag(cpu, FLAG_Z);
+    cpu->take_branch = get_flag(cpu, WDC_FLAG_Z);
     schedule_branch(cpu);
 }
 
 void schedule_bpl(WDC65816* cpu) {
-    cpu->take_branch = !get_flag(cpu, FLAG_N);
+    cpu->take_branch = !get_flag(cpu, WDC_FLAG_N);
     schedule_branch(cpu);
 }
 
 void schedule_bmi(WDC65816* cpu) {
-    cpu->take_branch = get_flag(cpu, FLAG_N);
+    cpu->take_branch = get_flag(cpu, WDC_FLAG_N);
     schedule_branch(cpu);
 }
 
 void schedule_bvc(WDC65816* cpu) {
-    cpu->take_branch = !get_flag(cpu, FLAG_V);
+    cpu->take_branch = !get_flag(cpu, WDC_FLAG_V);
     schedule_branch(cpu);
 }
 
 void schedule_bvs(WDC65816* cpu) {
-    cpu->take_branch = get_flag(cpu, FLAG_V);
+    cpu->take_branch = get_flag(cpu, WDC_FLAG_V);
     schedule_branch(cpu);
 }
 
@@ -1095,21 +1096,21 @@ void schedule_bit_16(WDC65816* cpu) {
 
 void op_bit_8(WDC65816* cpu) {
     uint8_t result = cpu->registers.a.low & cpu->operand;
-    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, WDC_FLAG_Z, result == 0);
 
     if (cpu->bank_mode != BANK_PROGRAM) {
-        set_flag(cpu, FLAG_N, cpu->operand >> 7);
-        set_flag(cpu, FLAG_V, (cpu->operand >> 6) & 0x1);
+        set_flag(cpu, WDC_FLAG_N, cpu->operand >> 7);
+        set_flag(cpu, WDC_FLAG_V, (cpu->operand >> 6) & 0x1);
     }
 } 
 
 void op_bit_16(WDC65816* cpu) {
     uint16_t result = cpu->registers.a.word & cpu->operand;
-    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, WDC_FLAG_Z, result == 0);
 
     if (cpu->bank_mode != BANK_PROGRAM) {
-        set_flag(cpu, FLAG_N, cpu->operand >> 15);
-        set_flag(cpu, FLAG_V, (cpu->operand >> 14) & 0x1);
+        set_flag(cpu, WDC_FLAG_N, cpu->operand >> 15);
+        set_flag(cpu, WDC_FLAG_V, (cpu->operand >> 14) & 0x1);
     }
 } 
 
@@ -1142,8 +1143,8 @@ void interrupt_4(WDC65816* cpu) {
 
 void interrupt_5(WDC65816* cpu) {
     push_stack(cpu, cpu->registers.p);
-    set_flag(cpu, FLAG_D, false);
-    set_flag(cpu, FLAG_I, true);
+    set_flag(cpu, WDC_FLAG_D, false);
+    set_flag(cpu, WDC_FLAG_I, true);
 }
 
 void interrupt_6(WDC65816* cpu) {
@@ -1171,7 +1172,7 @@ void schedule_clc(WDC65816* cpu) {
 }
 
 void clc_1(WDC65816* cpu) {
-    set_flag(cpu, FLAG_C, false);
+    set_flag(cpu, WDC_FLAG_C, false);
     end_op(cpu);
 }
 
@@ -1180,7 +1181,7 @@ void schedule_cld(WDC65816* cpu) {
 }
 
 void cld_1(WDC65816* cpu) {
-    set_flag(cpu, FLAG_D, false);
+    set_flag(cpu, WDC_FLAG_D, false);
     end_op(cpu);
 }
 
@@ -1189,8 +1190,8 @@ void schedule_cli(WDC65816* cpu) {
 }
 
 void cli_1(WDC65816* cpu) {
-    bool i = get_flag(cpu, FLAG_I);
-    set_flag(cpu, FLAG_I, false);
+    bool i = get_flag(cpu, WDC_FLAG_I);
+    set_flag(cpu, WDC_FLAG_I, false);
     end_op_flag_i(cpu, i);
 }
 
@@ -1199,7 +1200,7 @@ void schedule_clv(WDC65816* cpu) {
 }
 
 void clv_1(WDC65816* cpu) {
-    set_flag(cpu, FLAG_V, false);
+    set_flag(cpu, WDC_FLAG_V, false);
     end_op(cpu);
 }
 
@@ -1644,9 +1645,9 @@ void schedule_lsr_rmw_16(WDC65816* cpu) {
 void op_lsr(WDC65816* cpu) {
     bool c = cpu->operand & 0x1;
     cpu->operand >>= 1;
-    set_flag(cpu, FLAG_N, false);
-    set_flag(cpu, FLAG_C, c);
-    set_flag(cpu, FLAG_Z, cpu->operand == 0);
+    set_flag(cpu, WDC_FLAG_N, false);
+    set_flag(cpu, WDC_FLAG_C, c);
+    set_flag(cpu, WDC_FLAG_Z, cpu->operand == 0);
 }
 
 void schedule_block_move(WDC65816* cpu) {
@@ -1697,7 +1698,7 @@ void mvn_1(WDC65816* cpu) {
     cpu->registers.x.word++;
     cpu->registers.y.word++;
 
-    if (get_flag(cpu, FLAG_X)) {
+    if (get_flag(cpu, WDC_FLAG_X)) {
         cpu->registers.x.word &= 0xFF;
         cpu->registers.y.word &= 0xFF;    
     }   
@@ -1715,7 +1716,7 @@ void mvp_1(WDC65816* cpu) {
     cpu->registers.x.word--;
     cpu->registers.y.word--;
 
-    if (get_flag(cpu, FLAG_X)) {
+    if (get_flag(cpu, WDC_FLAG_X)) {
         cpu->registers.x.word &= 0xFF;
         cpu->registers.y.word &= 0xFF;    
     }   
@@ -1947,10 +1948,10 @@ void schedule_plp(WDC65816* cpu) {
 }
 
 void plp_1(WDC65816* cpu) {
-    bool flag_i = get_flag(cpu, FLAG_I);
+    bool flag_i = get_flag(cpu, WDC_FLAG_I);
     cpu->registers.p = pull_stack(cpu);
 
-    if (get_flag(cpu, FLAG_X)) {
+    if (get_flag(cpu, WDC_FLAG_X)) {
         cpu->registers.x.high = 0x00;
         cpu->registers.y.high = 0x00;
     }
@@ -2025,7 +2026,7 @@ void rep_1(WDC65816* cpu) {
 }
 
 void rep_2(WDC65816* cpu) {
-    bool flag_i = get_flag(cpu, FLAG_I);
+    bool flag_i = get_flag(cpu, WDC_FLAG_I);
     cpu->registers.p &= ~cpu->operand;
     end_op_flag_i(cpu, flag_i);
 }
@@ -2052,16 +2053,16 @@ void schedule_rol_rmw_16(WDC65816* cpu) {
 
 void op_rol_8(WDC65816* cpu) {
     bool c = cpu->operand >> 0x7;
-    cpu->operand = (cpu->operand << 1) | get_flag(cpu, FLAG_C);
+    cpu->operand = (cpu->operand << 1) | get_flag(cpu, WDC_FLAG_C);
     cpu->operand &= 0xFF;
-    set_flag(cpu, FLAG_C, c);
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_byte(cpu, cpu->operand);
 }
 
 void op_rol_16(WDC65816* cpu) {
     bool c = cpu->operand >> 0xF;
-    cpu->operand = (cpu->operand << 1) | get_flag(cpu, FLAG_C);
-    set_flag(cpu, FLAG_C, c);
+    cpu->operand = (cpu->operand << 1) | get_flag(cpu, WDC_FLAG_C);
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_word(cpu, cpu->operand);
 }
 
@@ -2088,15 +2089,15 @@ void schedule_ror_rmw_16(WDC65816* cpu) {
 
 void op_ror_8(WDC65816* cpu) {
     bool c = cpu->operand & 0x1;
-    cpu->operand = (cpu->operand >> 1) | get_flag(cpu, FLAG_C) << 0x7;
-    set_flag(cpu, FLAG_C, c);
+    cpu->operand = (cpu->operand >> 1) | get_flag(cpu, WDC_FLAG_C) << 0x7;
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_byte(cpu, cpu->operand);
 }
 
 void op_ror_16(WDC65816* cpu) {
     bool c = cpu->operand & 0x1;
-    cpu->operand = (cpu->operand >> 1) | get_flag(cpu, FLAG_C) << 0xF;
-    set_flag(cpu, FLAG_C, c);
+    cpu->operand = (cpu->operand >> 1) | get_flag(cpu, WDC_FLAG_C) << 0xF;
+    set_flag(cpu, WDC_FLAG_C, c);
     set_nz_word(cpu, cpu->operand);
 }
 
@@ -2148,7 +2149,7 @@ void schedule_rti(WDC65816* cpu) {
 
 void rti_1(WDC65816* cpu) {
     cpu->registers.p = pull_stack(cpu);
-    if (get_flag(cpu, FLAG_X)) {
+    if (get_flag(cpu, WDC_FLAG_X)) {
         cpu->registers.x.high = 0x00;
         cpu->registers.y.high = 0x00;
     }
@@ -2172,7 +2173,7 @@ void schedule_sec(WDC65816* cpu) {
 }
 
 void sec_1(WDC65816* cpu) {
-    set_flag(cpu, FLAG_C, true);
+    set_flag(cpu, WDC_FLAG_C, true);
     end_op(cpu);
 }
 
@@ -2181,7 +2182,7 @@ void schedule_sed(WDC65816* cpu) {
 }
 
 void sed_1(WDC65816* cpu) {
-    set_flag(cpu, FLAG_D, true);
+    set_flag(cpu, WDC_FLAG_D, true);
     end_op(cpu);
 }
 
@@ -2190,8 +2191,8 @@ void schedule_sei(WDC65816* cpu) {
 }
 
 void sei_1(WDC65816* cpu) {
-    bool i = get_flag(cpu, FLAG_I);
-    set_flag(cpu, FLAG_I, true);
+    bool i = get_flag(cpu, WDC_FLAG_I);
+    set_flag(cpu, WDC_FLAG_I, true);
     end_op_flag_i(cpu, i);
 }
 
@@ -2205,10 +2206,10 @@ void sep_1(WDC65816* cpu) {
 }
 
 void sep_2(WDC65816* cpu) {
-    bool flag_i = get_flag(cpu, FLAG_I);
+    bool flag_i = get_flag(cpu, WDC_FLAG_I);
     cpu->registers.p |= cpu->operand;
 
-    if (get_flag(cpu, FLAG_X)) {
+    if (get_flag(cpu, WDC_FLAG_X)) {
         cpu->registers.x.high = 0x00;
         cpu->registers.y.high = 0x00;
     }
@@ -2466,13 +2467,13 @@ void schedule_trb_rmw_16(WDC65816* cpu) {
 void op_trb_8(WDC65816* cpu) {
     bool z = (cpu->operand & cpu->registers.a.low) == 0;
     cpu->operand &= (~cpu->registers.a.low);
-    set_flag(cpu, FLAG_Z, z);
+    set_flag(cpu, WDC_FLAG_Z, z);
 }
 
 void op_trb_16(WDC65816* cpu) {
     bool z = (cpu->operand & cpu->registers.a.word) == 0;
     cpu->operand &= (~cpu->registers.a.word);
-    set_flag(cpu, FLAG_Z, z);
+    set_flag(cpu, WDC_FLAG_Z, z);
 }
 
 void schedule_tsb_rmw_8(WDC65816* cpu) {
@@ -2488,13 +2489,13 @@ void schedule_tsb_rmw_16(WDC65816* cpu) {
 void op_tsb_8(WDC65816* cpu) {
     bool z = (cpu->operand & cpu->registers.a.low) == 0;
     cpu->operand |= cpu->registers.a.low;
-    set_flag(cpu, FLAG_Z, z);
+    set_flag(cpu, WDC_FLAG_Z, z);
 }
 
 void op_tsb_16(WDC65816* cpu) {
     bool z = (cpu->operand & cpu->registers.a.word) == 0;
     cpu->operand |= cpu->registers.a.word;
-    set_flag(cpu, FLAG_Z, z);
+    set_flag(cpu, WDC_FLAG_Z, z);
 }
 
 void schedule_wai(WDC65816* cpu) {
@@ -2536,16 +2537,16 @@ void schedule_xce(WDC65816* cpu) {
 
 void xce_1(WDC65816* cpu) {
     bool e = cpu->emulation_mode;
-    bool c = get_flag(cpu, FLAG_C);
+    bool c = get_flag(cpu, WDC_FLAG_C);
     cpu->emulation_mode = c;
-    set_flag(cpu, FLAG_C, e);
+    set_flag(cpu, WDC_FLAG_C, e);
 
     if (c) {
         cpu->registers.x.high = 0x00;
         cpu->registers.y.high = 0x00;
         cpu->registers.s.high = 0x01;
-        set_flag(cpu, FLAG_X, true);
-        set_flag(cpu, FLAG_M, true);
+        set_flag(cpu, WDC_FLAG_X, true);
+        set_flag(cpu, WDC_FLAG_M, true);
     }
 
     end_op(cpu);
@@ -2564,21 +2565,21 @@ void schedule_adc_16(WDC65816* cpu) {
 void op_adc_8(WDC65816* cpu) {
     int result = 0x00;
 
-    if (get_flag(cpu, FLAG_D)) {
-        result = (cpu->registers.a.low & 0x0F) + (cpu->operand & 0x0F) + get_flag(cpu, FLAG_C);
+    if (get_flag(cpu, WDC_FLAG_D)) {
+        result = (cpu->registers.a.low & 0x0F) + (cpu->operand & 0x0F) + get_flag(cpu, WDC_FLAG_C);
         if (result > 0x9) result = ((result + 0x06) & 0x0F) + 0x10;
         
         result = (cpu->registers.a.low & 0xF0) + (cpu->operand & 0xF0) + result;
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.low) & (result ^ cpu->operand) & 0x80);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.low) & (result ^ cpu->operand) & 0x80);
         if (result > 0x9F) result += 0x60;
     } 
 
     else {
-        result = cpu->registers.a.low + cpu->operand + get_flag(cpu, FLAG_C);
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.low) & (result ^ cpu->operand) & 0x80);
+        result = cpu->registers.a.low + cpu->operand + get_flag(cpu, WDC_FLAG_C);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.low) & (result ^ cpu->operand) & 0x80);
     }
 
-    set_flag(cpu, FLAG_C, result > 0xFF);
+    set_flag(cpu, WDC_FLAG_C, result > 0xFF);
     set_nz_byte(cpu, result);
 
     cpu->registers.a.low = result & 0xFF;
@@ -2587,8 +2588,8 @@ void op_adc_8(WDC65816* cpu) {
 void op_adc_16(WDC65816* cpu) {
     int result = 0x0000;
 
-    if (get_flag(cpu, FLAG_D)) {
-        result = (cpu->registers.a.word & 0x0F) + (cpu->operand & 0x0F) + get_flag(cpu, FLAG_C);
+    if (get_flag(cpu, WDC_FLAG_D)) {
+        result = (cpu->registers.a.word & 0x0F) + (cpu->operand & 0x0F) + get_flag(cpu, WDC_FLAG_C);
         if (result > 0x9) result = ((result + 0x06) & 0x0F) + 0x10;
 
         result = (cpu->registers.a.word & 0xF0) + (cpu->operand & 0xF0) + result;
@@ -2598,16 +2599,16 @@ void op_adc_16(WDC65816* cpu) {
         if (result > 0x9FF) result = ((result + 0x0600) & 0x0FFF) + 0x1000;
 
         result = (cpu->registers.a.word & 0xF000) + (cpu->operand & 0xF000) + result;
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.word) & (result ^ cpu->operand) & 0x8000);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.word) & (result ^ cpu->operand) & 0x8000);
         if (result > 0x9FFF) result += 0x6000;
     }
 
     else {
-        result = cpu->registers.a.word + cpu->operand + get_flag(cpu, FLAG_C);
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.word) & (result ^ cpu->operand) & 0x8000);
+        result = cpu->registers.a.word + cpu->operand + get_flag(cpu, WDC_FLAG_C);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.word) & (result ^ cpu->operand) & 0x8000);
     }
 
-    set_flag(cpu, FLAG_C, result > 0xFFFF);
+    set_flag(cpu, WDC_FLAG_C, result > 0xFFFF);
     set_nz_word(cpu, result);
 
     cpu->registers.a.word = result & 0xFFFF;
@@ -2626,20 +2627,20 @@ void schedule_sbc_16(WDC65816* cpu) {
 void op_sbc_8(WDC65816* cpu) {
     int result = 0x00;
     
-    if (get_flag(cpu, FLAG_D)) {
-        result = (cpu->registers.a.low & 0x0F) - (cpu->operand & 0x0F) - !get_flag(cpu, FLAG_C);
+    if (get_flag(cpu, WDC_FLAG_D)) {
+        result = (cpu->registers.a.low & 0x0F) - (cpu->operand & 0x0F) - !get_flag(cpu, WDC_FLAG_C);
         if (result < 0) result = ((result - 0x06) & 0x0F) - 0x10;
         result = (cpu->registers.a.low & 0xF0) - (cpu->operand & 0xF0) + result;
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.low) & (result ^ ~cpu->operand) & 0x80);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.low) & (result ^ ~cpu->operand) & 0x80);
         if (result < 0) result -= 0x60;
     }
 
     else {
-        result = cpu->registers.a.low - cpu->operand - !get_flag(cpu, FLAG_C);
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.low) & (result ^ ~cpu->operand) & 0x80);
+        result = cpu->registers.a.low - cpu->operand - !get_flag(cpu, WDC_FLAG_C);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.low) & (result ^ ~cpu->operand) & 0x80);
     }
 
-    set_flag(cpu, FLAG_C, !(result < 0x00));
+    set_flag(cpu, WDC_FLAG_C, !(result < 0x00));
     set_nz_byte(cpu, result);
 
     cpu->registers.a.low = result & 0xFF;
@@ -2648,8 +2649,8 @@ void op_sbc_8(WDC65816* cpu) {
 void op_sbc_16(WDC65816* cpu) {
     int result = 0x0000;
 
-    if (get_flag(cpu, FLAG_D)) {
-        result = (cpu->registers.a.word & 0x0F) - (cpu->operand & 0x0F) - !get_flag(cpu, FLAG_C);
+    if (get_flag(cpu, WDC_FLAG_D)) {
+        result = (cpu->registers.a.word & 0x0F) - (cpu->operand & 0x0F) - !get_flag(cpu, WDC_FLAG_C);
         if (result < 0) result = ((result - 0x06) & 0x0F) - 0x10;
 
         result = (cpu->registers.a.word & 0xF0) - (cpu->operand & 0xF0) + result;
@@ -2660,17 +2661,17 @@ void op_sbc_16(WDC65816* cpu) {
 
         result = (cpu->registers.a.word & 0xF000) - (cpu->operand & 0xF000) + result;
 
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.word) & (result ^ ~cpu->operand) & 0x8000);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.word) & (result ^ ~cpu->operand) & 0x8000);
 
         if (result < 0) result -= 0x6000;
     }
 
     else {
-        result = cpu->registers.a.word - cpu->operand - !get_flag(cpu, FLAG_C);
-        set_flag(cpu, FLAG_V, (result ^ cpu->registers.a.word) & (result ^ ~cpu->operand) & 0x8000);
+        result = cpu->registers.a.word - cpu->operand - !get_flag(cpu, WDC_FLAG_C);
+        set_flag(cpu, WDC_FLAG_V, (result ^ cpu->registers.a.word) & (result ^ ~cpu->operand) & 0x8000);
     }
 
-    set_flag(cpu, FLAG_C, !(result < 0x0000));
+    set_flag(cpu, WDC_FLAG_C, !(result < 0x0000));
     set_nz_word(cpu, result);
 
     cpu->registers.a.word = result & 0xFFFF;

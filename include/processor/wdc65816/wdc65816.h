@@ -6,14 +6,14 @@
 
 typedef struct WDC65816 WDC65816;
 
-typedef uint8_t (*read_callback)(uint32_t address);
-typedef void (*write_callback)(uint32_t address, uint8_t data);
+typedef uint8_t (*WDC65816_read_callback)(uint32_t address);
+typedef void (*WDC65816_write_callback)(uint32_t address, uint8_t data);
 
 typedef void (*WDC65816_cycle_handler)(WDC65816* cpu);
 typedef void (*WDC65816_op_callback)(WDC65816* cpu);
 
 typedef enum WDC65816_flag {
-    FLAG_C, FLAG_Z, FLAG_I, FLAG_D, FLAG_X, FLAG_M, FLAG_V, FLAG_N
+    WDC_FLAG_C, WDC_FLAG_Z, WDC_FLAG_I, WDC_FLAG_D, WDC_FLAG_X, WDC_FLAG_M, WDC_FLAG_V, WDC_FLAG_N
 } WDC65816_flag;
 
 typedef enum WDC65816_bank {
@@ -40,13 +40,11 @@ struct WDC65816 {
     } registers;
 
     WDC65816_bank bank_mode;
-
+    
     WDC65816_cycle_handler cycle_lookup[0x8];
-
     register_pair* index_register;
 
     WDC65816_op_callback op_callback;
-
     WDC65816_vector interrupt_vector;
 
     uint32_t operand_address : 24;
@@ -61,8 +59,8 @@ struct WDC65816 {
 
     int master_cycles_elapsed;
 
-    read_callback read;
-    write_callback write;
+    WDC65816_read_callback read;
+    WDC65816_write_callback write;
 
     bool dummy_read;
 
@@ -75,7 +73,7 @@ struct WDC65816 {
     bool emulation_mode;
 };
 
-void init_wdc65816(WDC65816* cpu, read_callback read, write_callback write);
+void init_wdc65816(WDC65816* cpu, WDC65816_read_callback read, WDC65816_write_callback write);
 void cycle_wdc65816(WDC65816* cpu);
 
 int wdc65816_run_instruction(WDC65816* cpu);
