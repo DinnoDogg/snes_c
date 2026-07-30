@@ -11,7 +11,7 @@ static long get_nanos(struct timespec* ts) {
 }
 
 static uint8_t test_read(uint32_t address) {
-    return rand() % 2;
+    return rand() & 0xFF;
 }
 
 static void test_write(uint32_t address, uint8_t data) {
@@ -32,7 +32,7 @@ int main() {
     WDC65816 test_65816 = {0};
     init_wdc65816(&test_65816, &test_read, &test_write);
 
-    while (master_time < 400000) {
+    while (master_time < 357268) {
 
         while (relative_time >= get_next_event(snes->scheduler)->timecode) {
             long id = get_next_event(snes->scheduler)->id;
