@@ -100,18 +100,6 @@ bool get_bit(int value, int index) {
     return (value >> index) & 0x1;
 }
 
-int spc700_run_immediate(SPC700* cpu) {
-    uint8_t opcode = read_immediate(cpu);
-    spc700_run_instruction(cpu, opcode);
-    return cpu->cycle_count;
-}
-
-uint8_t spc700_run_immediate_get_next_op(SPC700* cpu) {
-    uint8_t opcode = read_immediate(cpu);
-    spc700_run_instruction(cpu, opcode);
-    return read_immediate(cpu);
-}
-
 uint8_t spc700_read_immediate(SPC700* cpu) {
     return read_immediate(cpu);
 }

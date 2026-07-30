@@ -37,9 +37,6 @@ typedef struct SPC700 {
 
 void init_spc700(SPC700* cpu, void* bus);
 
-int spc700_run_immediate(SPC700* cpu);
-uint8_t spc700_run_immediate_get_next_op(SPC700* cpu);
-
 uint8_t spc700_read_immediate(SPC700* cpu);
 
 void spc700_run_instruction(SPC700* cpu, uint8_t opcode);

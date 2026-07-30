@@ -2,8 +2,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "include/apu.h"
 #include "include/processor/spc700/spc700.h"
+
+#include "include/apu.h"
 
 static bool get_bit(int value, int index);
 
