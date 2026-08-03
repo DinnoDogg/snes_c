@@ -15,34 +15,47 @@ int main() {
     snes* snes = new_snes(NULL);
     struct timespec ts;
 
-    int relative_time = 0, master_time = 0;
-
     timespec_get(&ts, TIME_UTC);
-    long start = get_nanos(&ts);
+    long frame_begin = get_nanos(&ts);
 
-    while (master_time < 357268) {
+    while (true) {
+        int relative_time = 0, master_time = 0;
 
-        while (relative_time >= get_next_event(snes->scheduler)->timecode) {
-            long id = get_next_event(snes->scheduler)->id;
-            get_next_event(snes->scheduler)->callback(snes);
-            remove_event(snes->scheduler, id);
+        timespec_get(&ts, TIME_UTC);
+        long start = get_nanos(&ts);
 
-            relative_time = 0;
+        while (master_time < 357268) {
+            while (relative_time >= get_next_event(snes->scheduler)->timecode) {
+                long id = get_next_event(snes->scheduler)->id;
+                get_next_event(snes->scheduler)->callback(snes);
+                remove_event(snes->scheduler, id);
+
+                relative_time = 0;
+            }
+
+            cycle_wdc65816((WDC65816*) snes->cpu);
+
+            relative_time += 6;
+            master_time += 6;
         }
 
-        cycle_wdc65816((WDC65816*) snes->cpu);
+        timespec_get(&ts, TIME_UTC);
+        long end = get_nanos(&ts);
+        long elapsed = end - start;
 
-        relative_time += 6;
-        master_time += 6;
+        printf("elapsed ms %f \n", (float) elapsed / 1e+6f );
+
+        while (true) {
+            timespec_get(&ts, TIME_UTC);
+            
+            if ((float) (get_nanos(&ts) - frame_begin) >= 1.666667e+7) {
+                frame_begin = get_nanos(&ts);
+                break;
+            } 
+        }
     }
 
-    timespec_get(&ts, TIME_UTC);
-    long end = get_nanos(&ts);
-    long elapsed = end - start;
-
     print_scheduled_events(snes->scheduler);
-
-    printf("elapsed ms %f \n", (float) elapsed / 1e+6f );
 
     free_snes(snes);
 }
