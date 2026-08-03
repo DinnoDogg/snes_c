@@ -9,7 +9,7 @@
 
 typedef struct wram wram;
 
-typedef struct cpu {
+typedef struct s_cpu {
     WDC65816 base;
 
     struct {
@@ -20,9 +20,9 @@ typedef struct cpu {
 
     //dma
     uint8_t mdr;
-} cpu;
+} s_cpu;
 
-cpu* new_cpu(cart* cart, wram* wram, apu* apu);
-void free_cpu(cpu* cpu);
+s_cpu* new_cpu(cart* cart, wram* wram, apu* apu);
+void free_cpu(s_cpu* cpu);
 
 #endif

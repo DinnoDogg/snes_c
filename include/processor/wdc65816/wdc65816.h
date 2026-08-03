@@ -21,7 +21,7 @@ typedef enum WDC65816_bank {
 } WDC65816_bank;
 
 typedef enum WDC65816_vector {
-    VECTOR_IRQ = 0xFFEE, VECTOR_NMI = 0xFFEA, VECTOR_BRK = 0xFFE6, VECTOR_COP = 0xFFE4
+    VECTOR_IRQ = 0xFFEE, VECTOR_NMI = 0xFFEA, VECTOR_BRK = 0xFFE6, VECTOR_COP = 0xFFE4, VECTOR_RESET = 0xFFFC
 } WDC65816_vector;
 
 typedef union register_pair {
@@ -78,5 +78,7 @@ void cycle_wdc65816(WDC65816* cpu);
 int wdc65816_run_instruction(WDC65816* cpu);
 
 void wdc65816_print_state(WDC65816* cpu);
+
+void wdc65816_reset(WDC65816* cpu);
 
 #endif

@@ -68,9 +68,14 @@ static void compare_reg_16(WDC65816* cpu, uint16_t reg);
 static void transfer_8(WDC65816* cpu, uint8_t source, uint8_t* dest);
 static void transfer_16(WDC65816* cpu, uint16_t source, uint16_t* dest);
 
+static void schedule_reset(WDC65816* cpu);
+
 void init_wdc65816(WDC65816* cpu, WDC65816_read_callback read, WDC65816_write_callback write) {
     cpu->read = read;
     cpu->write = write;
+
+    cpu->current_cycle = 0;
+    cpu->cycle_lookup_index = 0;
 }
 
 void cycle_wdc65816(WDC65816* cpu) {
@@ -410,6 +415,16 @@ void cycle_wdc65816(WDC65816* cpu) {
     return; //6 + waitstate;
 }
 
+void schedule_reset(WDC65816* cpu) {
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &dummy_read_pc;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &reset_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &reset_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &reset_1;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &reset_2;
+    cpu->cycle_lookup[cpu->cycle_lookup_index++] = &reset_3;
+}
+
 void wdc65816_print_state(WDC65816* cpu) {
     printf("A.W: %u\n", cpu->registers.a.word);
     printf("A.H: %u\n", cpu->registers.a.high);
@@ -468,6 +483,26 @@ int wdc65816_run_instruction(WDC65816* cpu) {
     } while (cpu->current_cycle != 0);
 
     return cycle_count;
+}
+
+void wdc65816_reset(WDC65816* cpu) {
+    cpu->registers.d.word = 0;
+    cpu->registers.dbr = 0;
+    cpu->registers.pbr = 0;
+
+    cpu->registers.x.high = 0;
+    cpu->registers.y.high = 0;
+
+    set_flag(cpu, WDC_FLAG_M, true);
+    set_flag(cpu, WDC_FLAG_X, true);
+    set_flag(cpu, WDC_FLAG_D, false);
+    set_flag(cpu, WDC_FLAG_I, true);
+    set_flag(cpu, WDC_FLAG_C, true);
+
+    cpu->emulation_mode = true;
+    cpu->current_cycle = 1;
+
+    schedule_reset(cpu);
 }
 
 uint8_t read(WDC65816* cpu, uint32_t address) {
@@ -2671,6 +2706,19 @@ void op_sbc_16(WDC65816* cpu) {
     set_nz_word(cpu, result);
 
     cpu->registers.a.word = result & 0xFFFF;
+}
+
+void reset_1(WDC65816* cpu) {
+    read(cpu, cpu->registers.s.word--);
+}
+
+void reset_2(WDC65816* cpu) {
+    cpu->registers.pc.word = read(cpu, VECTOR_RESET);
+}
+
+void reset_3(WDC65816* cpu) {
+    cpu->registers.pc.word |= read(cpu, VECTOR_RESET + 1) << 8;
+    end_op(cpu);
 }
 
 #undef EXEC_OP

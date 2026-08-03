@@ -421,3 +421,7 @@ static void xba_1(WDC65816* cpu);
 
 static void schedule_xce(WDC65816* cpu);
 static void xce_1(WDC65816* cpu);
+
+static void reset_1(WDC65816* cpu);
+static void reset_2(WDC65816* cpu);
+static void reset_3(WDC65816* cpu);
