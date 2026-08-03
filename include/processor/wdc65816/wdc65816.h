@@ -6,8 +6,8 @@
 
 typedef struct WDC65816 WDC65816;
 
-typedef uint8_t (*WDC65816_read_callback)(uint32_t address);
-typedef void (*WDC65816_write_callback)(uint32_t address, uint8_t data);
+typedef uint8_t (*WDC65816_read_callback)(void* cpu, uint32_t address, bool valid_access);
+typedef void (*WDC65816_write_callback)(void* cpu, uint32_t address, uint8_t data);
 
 typedef void (*WDC65816_cycle_handler)(WDC65816* cpu);
 typedef void (*WDC65816_op_callback)(WDC65816* cpu);
@@ -29,7 +29,6 @@ typedef union register_pair {
         uint8_t low;
         uint8_t high;
     };
-
     uint16_t word;
 } register_pair;
 
@@ -47,6 +46,9 @@ struct WDC65816 {
     WDC65816_op_callback op_callback;
     WDC65816_vector interrupt_vector;
 
+    WDC65816_read_callback read;
+    WDC65816_write_callback write;
+
     uint32_t operand_address : 24;
     uint32_t indirect_address : 24; 
     uint16_t operand;
@@ -58,9 +60,6 @@ struct WDC65816 {
     int cycle_lookup_index;
 
     int master_cycles_elapsed;
-
-    WDC65816_read_callback read;
-    WDC65816_write_callback write;
 
     bool dummy_read;
 

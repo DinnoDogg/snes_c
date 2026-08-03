@@ -6,15 +6,6 @@
 
 #include "processor/spc700/spc700.h"
 
-typedef struct apu apu;
-
-typedef struct apu_bus {
-    SPC700_bus base;
-    uint8_t* audio_ram;
-    apu* apu;
-    //dsp
-} apu_bus;
-
 typedef struct apu_io_port {
     uint8_t data_in, data_out;
 } apu_io_port;
@@ -25,8 +16,13 @@ typedef struct apu_timer {
     long event_id;
 } apu_timer;
 
-struct apu {
+typedef struct apu {
     SPC700 base;
+
+    struct {
+        uint8_t* audio_ram;
+        //dsp;
+    } bus;
 
     apu_io_port io_port[0x4];
     apu_timer timer[0x3];
@@ -34,7 +30,7 @@ struct apu {
     uint8_t dsp_address;
 
     bool ipl_enable;
-};
+} apu;
 
 apu* new_apu(uint8_t* audio_ram);
 void free_apu(apu* apu);

@@ -11,8 +11,8 @@ static bool get_bit(int value, int index);
 static uint8_t read_internal_io(apu* apu, uint8_t address);
 static void write_internal_io(apu* apu, uint8_t address, uint8_t data);
 
-static uint8_t read_apu_bus(void* bus, uint16_t address);
-static void write_apu_bus(void* bus, uint16_t address, uint8_t data);
+static uint8_t read_apu_bus(void* cpu, uint16_t address);
+static void write_apu_bus(void* cpu, uint16_t address, uint8_t data);
 
 static const uint8_t ipl_rom[0x40] = {
     0xCD, 0xEF, 0xBD, 0xE8, 0x00, 0xC6, 0x1D, 0xD0, 0xFC, 0x8F, 0xAA, 0xF4, 0x8F, 0xBB, 0xF5, 0x78,
@@ -27,22 +27,17 @@ bool get_bit(int value, int index) {
 
 apu* new_apu(uint8_t* audio_ram) {
     apu* result = malloc(sizeof(apu));
-    apu_bus* bus = malloc(sizeof(apu_bus));
 
-    bus->audio_ram = audio_ram;
-    bus->apu = result;
+    result->bus.audio_ram = audio_ram;
+    //dsp
 
-    bus->base.read = &read_apu_bus;
-    bus->base.write = &write_apu_bus;
-
-    init_spc700((SPC700*) result, bus);
+    init_spc700((SPC700*) result, &read_apu_bus, &write_apu_bus);
     reset_apu(result);
 
     return result;
 }
 
 void free_apu(apu* apu) {
-    free(apu->base.bus);
     free(apu);
 }
 
@@ -66,29 +61,29 @@ void reset_apu(apu* apu) {
     apu->timer[2].interval = 0;
 }
 
-uint8_t read_apu_bus(void* bus, uint16_t address) {
-    apu_bus* b = (apu_bus*) bus;
+uint8_t read_apu_bus(void* cpu, uint16_t address) {
+    apu* apu_ptr = (apu*) cpu;
     
     if (address < 0xF0 || (address > 0xFF && address < 0xFFC0) || address == 0x00F8 || address == 0x00F9) {
-        return b->audio_ram[address];
+        return apu_ptr->bus.audio_ram[address];
     }
 
     if (address > 0xFFBF) {
-        return (b->apu->ipl_enable) ? ipl_rom[address & 0x3F] : b->audio_ram[address];
+        return (apu_ptr->ipl_enable) ? ipl_rom[address & 0x3F] : apu_ptr->bus.audio_ram[address];
     }
 
-    return read_internal_io(b->apu, address);
+    return read_internal_io(apu_ptr, address);
 }
 
-void write_apu_bus(void* bus, uint16_t address, uint8_t data){
-    apu_bus* b = (apu_bus*) bus;
+void write_apu_bus(void* cpu, uint16_t address, uint8_t data){
+    apu* apu_ptr = (apu*) cpu;
 
     if (address < 0xF0 || address > 0xFF || address == 0x00F8 || address == 0x00F9) {
-        b->audio_ram[address] = data;
+        apu_ptr->bus.audio_ram[address] = data;
         return;
     }
 
-    write_internal_io(b->apu, address, data);
+    write_internal_io(apu_ptr, address, data);
 }
 
 uint8_t read_internal_io(apu* apu, uint8_t address) {

@@ -92,8 +92,9 @@ static uint8_t algorithm_lsr(SPC700* cpu, uint8_t operand);
 static uint8_t algorithm_rol(SPC700* cpu, uint8_t operand);
 static uint8_t algorithm_ror(SPC700* cpu, uint8_t operand);
 
-void init_spc700(SPC700* cpu, void* bus) {
-    cpu->bus = bus;
+void init_spc700(SPC700* cpu, SPC700_read_callback read, SPC700_write_callback write) {
+    cpu->read = read;
+    cpu->write = write;
 }
 
 bool get_bit(int value, int index) {
@@ -468,11 +469,11 @@ void set_flag(SPC700* cpu, SPC700_flag flag, bool value) {
 }
 
 uint8_t read(SPC700* cpu, uint16_t address) {
-    return cpu->bus->read(cpu->bus, address);
+    return cpu->read(cpu, address);
 }
 
 void write(SPC700* cpu, uint16_t address, uint8_t data) {
-    cpu->bus->write(cpu->bus, address, data);
+    cpu->write(cpu, address, data);
 }
 
 uint8_t read_immediate(SPC700* cpu) {

@@ -471,27 +471,23 @@ int wdc65816_run_instruction(WDC65816* cpu) {
 }
 
 uint8_t read(WDC65816* cpu, uint32_t address) {
-    //set open bus
-    //handle waitstate
-    return cpu->read(address);
+    return cpu->read(cpu, address, true);
 }
 
 void write(WDC65816* cpu, uint32_t address, uint8_t data) {
-    //set open bus
-    //handle waitstate
-    cpu->write(address, data);
+    cpu->write(cpu, address, data);
 }
 
 void dummy_read(WDC65816* cpu, uint32_t address) {
-    cpu->read(address);
+    cpu->read(cpu, address, false);
 }
 
 void dummy_read_pc(WDC65816* cpu) {
-    cpu->read((cpu->registers.pbr << 16) | cpu->registers.pc.word);
+    dummy_read(cpu, (cpu->registers.pbr << 16) | cpu->registers.pc.word);
 }
 
 void dummy_read_sp(WDC65816* cpu) {
-    cpu->read(cpu->registers.s.word);
+    dummy_read(cpu, cpu->registers.s.word);
 }
 
 uint8_t read_immediate(WDC65816* cpu) {
