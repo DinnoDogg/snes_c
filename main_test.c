@@ -20,7 +20,7 @@ int main() {
     timespec_get(&ts, TIME_UTC);
     long start = get_nanos(&ts);
 
-    while (master_time < 500) {
+    while (master_time < 357268) {
 
         while (relative_time >= get_next_event(snes->scheduler)->timecode) {
             long id = get_next_event(snes->scheduler)->id;
