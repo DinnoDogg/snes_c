@@ -4,31 +4,37 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef uint8_t (*read_callback)(uint32_t address);
-typedef void (*write_callback)(uint32_t address, uint8_t data);
+typedef struct cart cart;
+
+typedef uint8_t (*cart_read_callback)(cart* cart, uint32_t address, uint8_t open_bus);
+typedef void (*cart_write_callback)(cart* cart, uint32_t address, uint8_t data);
 
 typedef enum cart_map {
     LO_ROM, HI_ROM, EX_HI_ROM = 0x5
 } cart_map;
 
-typedef struct cart {
-    char title[0x16];
-    bool has_ram, has_battery, slow_rom;
+typedef enum coprocessor_type {
+    DSP, SUPERFX, OBC1, SA1, S_DD1, S_RTC, SUPER_GAMEBOY, CUSTOM, NO_COPROCESSOR
+} coprocessor_type;
 
-    int rom_size, ram_size;
-
-    cart_map map_mode;
+struct cart {
+    cart_read_callback read;
+    cart_write_callback write;
 
     uint8_t* rom;
     uint8_t* ram;
 
-    read_callback read;
-    write_callback write;
-} cart;
+    int rom_size, ram_size;
 
-cart* new_cart(uint8_t* rom_buffer, long rom_size);
+    bool has_ram, has_battery;
+
+    coprocessor_type coprocessor_type;
+};
+
+cart* new_cart(uint8_t* rom_buffer);
 void free_cart(cart* cart);
 
-void print_cart_details(cart* cart);
+uint8_t read_cart(cart* cart, uint32_t address, uint8_t open_bus);
+void write_cart(cart* cart, uint32_t address, uint8_t data);
 
 #endif

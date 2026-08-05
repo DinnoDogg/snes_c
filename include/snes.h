@@ -10,6 +10,11 @@
 
 #define SYSTEM_EVENT_COUNT 0x10
 
+typedef enum snes_clock_divisor {
+    CLOCK_DIVISOR_CPU = 6,
+    CLOCK_DIVISOR_APU = 21
+} snes_clock_divisor;
+
 typedef struct wram {
     uint8_t memory[0x20000];
     uint32_t io_address : 17;
@@ -28,7 +33,7 @@ typedef struct snes {
 snes* new_snes(cart* cart);
 void free_snes(snes* snes);
 
-static uint8_t read_wram_io(wram* wram, uint32_t address);
-static void write_wram_io(wram* wram, uint32_t address, uint8_t data);
+uint8_t read_wram_io(wram* wram);
+void write_wram_io(wram* wram, uint8_t address, uint8_t data);
 
 #endif

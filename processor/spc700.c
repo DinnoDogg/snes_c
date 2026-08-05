@@ -109,7 +109,7 @@ void spc700_run_instruction(SPC700* cpu, uint8_t opcode) {
     cpu->opcode = opcode;
     cpu->cycle_count = spc700_get_op_time(opcode);
 
-    //printf("SPC Opcode: %02X\n", opcode);
+    printf("SPC Opcode: %02X\n", opcode);
 
     switch (opcode) {
         EXEC_OP(0xE8, addr_imm, mov_a_mem, false);

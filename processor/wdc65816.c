@@ -99,6 +99,8 @@ void cycle_wdc65816(WDC65816* cpu) {
         }
 
         uint8_t opcode = read_immediate(cpu);
+
+        printf("65816 opcode %02X\n", opcode);
         
         switch (opcode) {
             EXEC_OP_M(0x2D, schedule_addr_a, schedule_and, false);
@@ -412,7 +414,7 @@ void cycle_wdc65816(WDC65816* cpu) {
     cpu->nmi_latch = cpu->nmi_line && !cpu->last_nmi_line;
     cpu->last_nmi_line = cpu->nmi_line;
 
-    return; //6 + waitstate;
+    return;
 }
 
 void schedule_reset(WDC65816* cpu) {
@@ -501,6 +503,16 @@ void wdc65816_reset(WDC65816* cpu) {
 
     cpu->emulation_mode = true;
     cpu->current_cycle = 1;
+
+    cpu->wai = false;
+
+    cpu->irq_pending = false;
+
+    cpu->nmi_line = false;
+    cpu->last_nmi_line = false;
+
+    cpu->irq_line = false;
+    cpu->nmi_latch = false;
 
     schedule_reset(cpu);
 }

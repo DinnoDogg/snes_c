@@ -61,3 +61,32 @@ void handle_apu_op(void* state) {
     spc700_run_instruction(spc, spc->opcode);
     schedule_apu_op(s);
 }
+
+uint8_t read_wram_io(wram* wram) {
+    return wram->memory[wram->io_address++];
+}
+
+void write_wram_io(wram* wram, uint8_t address, uint8_t data) {
+    address &= 0x3;
+    
+    switch (address) {
+        case 0: 
+            wram->memory[wram->io_address++] = data; 
+            break;
+
+        case 1:
+            wram->io_address &= ~0xFF;
+            wram->io_address |= data;
+            break;
+
+        case 2:
+            wram->io_address &= ~0xFF00;
+            wram->io_address |= data << 8;
+            break;
+        
+        case 3:
+            wram->io_address &= 0xFFFF;
+            wram->io_address |= (data & 0x1) << 0x10;
+            break;
+    }
+}

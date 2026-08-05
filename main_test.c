@@ -15,13 +15,12 @@ int main() {
     snes* snes = new_snes(NULL);
     struct timespec ts;
 
-    timespec_get(&ts, TIME_UTC);
-    long frame_begin = get_nanos(&ts);
+    long frame_begin = 0;
 
     while (true) {
         int relative_time = 0, master_time = 0;
 
-        timespec_get(&ts, TIME_UTC);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
         long start = get_nanos(&ts);
 
         while (master_time < 357268) {
@@ -39,14 +38,14 @@ int main() {
             master_time += 6;
         }
 
-        timespec_get(&ts, TIME_UTC);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
         long end = get_nanos(&ts);
         long elapsed = end - start;
 
         printf("elapsed ms %f \n", (float) elapsed / 1e+6f );
 
         while (true) {
-            timespec_get(&ts, TIME_UTC);
+            clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
             
             if ((float) (get_nanos(&ts) - frame_begin) >= 1.666667e+7) {
                 frame_begin = get_nanos(&ts);

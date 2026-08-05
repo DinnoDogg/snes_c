@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "include/processor/spc700/spc700.h"
 
@@ -159,4 +160,15 @@ void write_internal_io(apu* apu, uint8_t address, uint8_t data) {
             apu->timer[timer].interval = data;
             break;
     }
+}
+
+uint8_t read_apu_io(apu* apu, uint8_t address) {
+    uint8_t port = address & 0x3;
+    return apu->io_port[port].data_out;
+}
+
+void write_apu_io(apu* apu, uint8_t address, uint8_t data) {
+    uint8_t port = address & 0x3;
+    apu->io_port[port].data_in = data;
+    //printf("apu write %u\n", data);
 }

@@ -37,4 +37,7 @@ void free_apu(apu* apu);
 
 void reset_apu(apu* apu);
 
+uint8_t read_apu_io(apu* apu, uint8_t address);
+void write_apu_io(apu* apu, uint8_t address, uint8_t data);
+
 #endif
