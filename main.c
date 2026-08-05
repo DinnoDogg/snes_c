@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     long start = get_nanos(&ts);
 
-    while (master_time < 357268 * 5) {
+    while (master_time < 357268) {
         while (relative_time >= get_next_event(snes->scheduler)->timecode) {
             long id = get_next_event(snes->scheduler)->id;
             get_next_event(snes->scheduler)->callback(snes);
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     wdc65816_print_state((WDC65816*) snes->cpu);
     spc700_print_state((SPC700*) snes->apu);
 
-    //printf("elapsed ms %f \n", (float) elapsed / 1e+6f);
+    printf("elapsed ms %f \n", (float) elapsed / 1e+6f);
 
     free_cart(cart);
     free_snes(snes);
