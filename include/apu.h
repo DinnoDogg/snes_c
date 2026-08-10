@@ -5,19 +5,22 @@
 #include <stdbool.h>
 
 #include "processor/spc700/spc700.h"
+#include "scheduler.h"
 
 typedef struct apu_io_port {
     uint8_t data_in, data_out;
 } apu_io_port;
 
 typedef struct apu_timer {
-    uint8_t count : 4;
-    uint8_t interval;
-    long event_id;
+    uint8_t up_counter: 4;
+    uint8_t interval, internal_counter;
+    bool enabled;
+    long tick_event_id;
 } apu_timer;
 
 typedef struct apu {
     SPC700 base;
+    scheduler* scheduler;
 
     struct {
         uint8_t* audio_ram;
@@ -32,7 +35,7 @@ typedef struct apu {
     bool ipl_enable;
 } apu;
 
-apu* new_apu(uint8_t* audio_ram);
+apu* new_apu(uint8_t* audio_ram, scheduler* scheduler);
 void free_apu(apu* apu);
 
 void reset_apu(apu* apu);

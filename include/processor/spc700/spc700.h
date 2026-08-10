@@ -33,9 +33,9 @@ typedef struct SPC700 {
 
 void init_spc700(SPC700* cpu, SPC700_read_callback read, SPC700_write_callback write);
 
-uint8_t spc700_read_immediate(SPC700* cpu);
+void spc700_run_instruction(SPC700* cpu);
 
-void spc700_run_instruction(SPC700* cpu, uint8_t opcode);
+void spc700_reset(SPC700* cpu);
 
 int spc700_get_op_time(uint8_t opcode);
 void spc700_print_state(SPC700* cpu);

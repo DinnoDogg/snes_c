@@ -48,39 +48,53 @@ int main(int argc, char *argv[]) {
 
     struct timespec ts;
 
-    while (true) {
-        int relative_time = 0, master_time = 0;
+    SPC700* spc = (SPC700*) snes->apu;
 
-        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-        long start = get_nanos(&ts);
+    //int next_spc_tick = 0;
+    //int accumulator = 0, master_time = 0;
 
-        while (master_time < 357268) {
-            while (relative_time >= get_next_event(snes->scheduler)->timecode) {
-                long id = get_next_event(snes->scheduler)->id;
-                get_next_event(snes->scheduler)->callback(snes);
-                remove_event(snes->scheduler, id);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    long start = get_nanos(&ts);
 
-                relative_time = 0;
-            }
+    int frame_count = 5000;
 
-            int cycles_elapsed = cycle_cpu(snes->cpu);
+    while (snes->scheduler->current_time < 357368 * frame_count) {
+        scheduler_event* next_event = get_next_event(snes->scheduler);
 
-            relative_time += cycles_elapsed;
-            master_time += cycles_elapsed;
+        while(snes->scheduler->current_time >= next_event->timecode) {
+            long id = next_event->id;
+            next_event->callback(snes);
+            remove_event(snes->scheduler, id);
+            next_event = get_next_event(snes->scheduler);
         }
 
-        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-        long end = get_nanos(&ts);
-        long elapsed = end - start;
-
-        printf("elapsed ms %f \n", (float) elapsed / 1e+6f );
-
+        int cycles_elapsed = cycle_cpu(snes->cpu);
+        snes->scheduler->current_time += cycles_elapsed;
     }
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    long end = get_nanos(&ts);
+
+    double elapsed = (double) (end - start) / 1e+6f;
+    double average = elapsed / (double) frame_count;
 
     print_scheduled_events(snes->scheduler);
 
     wdc65816_print_state((WDC65816*) snes->cpu);
     spc700_print_state((SPC700*) snes->apu);
+
+    for (int i = 0; i < 4; i++) {
+        printf("APU IO %u  IN: %02X  OUT: %02X\n", i, snes->apu->io_port[i].data_in, snes->apu->io_port[i].data_out);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < 3; i++) {
+        apu_timer* t = &snes->apu->timer[i];
+        printf("APU timer %u  interval: %u  internal counter: %u  up counter: %u  event id: %lu\n", i, t->interval, t->internal_counter, t->up_counter, t->tick_event_id);
+    }
+
+    printf("elapsed ms %f  averaging %f ms per frame (%u frames) \n", elapsed, average, frame_count);
 
     free_cart(cart);
     free_snes(snes);

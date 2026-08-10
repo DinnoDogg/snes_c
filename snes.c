@@ -10,16 +10,17 @@
 
 static void init_scheduler(snes* snes);
 
+static void schedule_apu_op(snes* snes, int timecode);
 static void handle_apu_op(void* state);
-static void schedule_apu_op(snes* snes);
 
 snes* new_snes(cart* cart) {
     snes* result = malloc(sizeof(snes));
 
     result->cart = cart;
 
-    result->apu = new_apu(result->audio_ram);
     result->scheduler = new_scheduler(SYSTEM_EVENT_COUNT);
+
+    result->apu = new_apu(result->audio_ram, result->scheduler);
     result->cpu = new_cpu(result->cart, &result->wram, result->apu);
 
     init_scheduler(result);
@@ -35,31 +36,7 @@ void free_snes(snes* snes) {
 }
 
 void init_scheduler(snes* snes) {
-    schedule_apu_op(snes);
-}
-
-void schedule_apu_op(snes* snes) {
-    uint8_t opcode = spc700_read_immediate((SPC700*) snes->apu);
-    int timecode = spc700_get_op_time(opcode);
-
-    snes->apu->base.opcode = opcode;
-
-    if (snes->apu->base.branch_taken) {
-        timecode += 2;
-        snes->apu->base.branch_taken = false;
-    }
-
-    timecode *= 21;
-
-    schedule_event(snes->scheduler, timecode, &handle_apu_op);
-}
-
-void handle_apu_op(void* state) {
-    snes* s = (snes*) state;
-    SPC700* spc = (SPC700*) s->apu;
-
-    spc700_run_instruction(spc, spc->opcode);
-    schedule_apu_op(s);
+    handle_apu_op(snes);
 }
 
 uint8_t read_wram_io(wram* wram) {
@@ -90,3 +67,17 @@ void write_wram_io(wram* wram, uint8_t address, uint8_t data) {
             break;
     }
 }
+
+//snes scheduler functions
+
+void handle_apu_op(void* state) {
+    snes* snes_ptr = (snes*) state;
+    SPC700* spc = (SPC700*) snes_ptr->apu;
+
+    spc700_run_instruction(spc);
+
+    int next_time = spc->cycle_count * CLOCK_DIVISOR_APU;
+
+    schedule_event(snes_ptr->scheduler, next_time, &handle_apu_op);
+}
+

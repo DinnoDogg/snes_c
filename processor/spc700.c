@@ -101,15 +101,14 @@ bool get_bit(int value, int index) {
     return (value >> index) & 0x1;
 }
 
-uint8_t spc700_read_immediate(SPC700* cpu) {
-    return read_immediate(cpu);
-}
+void spc700_run_instruction(SPC700* cpu) {
+    //uint16_t pee_see = cpu->registers.pc;
+    uint8_t opcode = read_immediate(cpu);
 
-void spc700_run_instruction(SPC700* cpu, uint8_t opcode) {
     cpu->opcode = opcode;
     cpu->cycle_count = spc700_get_op_time(opcode);
 
-    //printf("SPC Opcode: %02X\n", opcode);
+    //printf("SPC Opcode: %02X at %04X\n", opcode, pee_see);
 
     switch (opcode) {
         EXEC_OP(0xE8, addr_imm, mov_a_mem, false);
@@ -419,15 +418,25 @@ void spc700_run_instruction(SPC700* cpu, uint8_t opcode) {
     }
 }
 
-void spc700_print_state(SPC700* cpu) {
-    printf("A: %u\n", cpu->registers.a);
-    printf("X: %u\n", cpu->registers.x);
-    printf("Y: %u\n", cpu->registers.y);
-    printf("SP: %u\n", cpu->registers.sp);
-    printf("PC: %u\n", cpu->registers.pc);
-    printf("YA: %u\n\n", get_ya(cpu));
+void spc700_reset(SPC700* cpu) {
+    cpu->registers.pc = 0xFFC0;
+    cpu->registers.sp = 0xFF;
 
-    printf("PSW: %u\n\n", cpu->registers.psw);
+    cpu->registers.psw = 0x00;
+    cpu->registers.x = 0x00;
+    cpu->registers.y = 0x00;
+    cpu->registers.a = 0x00;
+}
+
+void spc700_print_state(SPC700* cpu) {
+    printf("A: %02X\n", cpu->registers.a);
+    printf("X: %02X\n", cpu->registers.x);
+    printf("Y: %02X\n", cpu->registers.y);
+    printf("SP: %02X\n", cpu->registers.sp);
+    printf("PC: %04X\n", cpu->registers.pc);
+    printf("YA: %04X\n\n", get_ya(cpu));
+
+    printf("PSW: %02X\n\n", cpu->registers.psw);
 
     printf("N: %u\n", get_flag(cpu, SPC_FLAG_N));
     printf("V: %u\n", get_flag(cpu, SPC_FLAG_V));

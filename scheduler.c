@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "include/scheduler.h"
 
@@ -74,15 +75,17 @@ void remove_event(scheduler* scheduler, int id) {
 
 void print_scheduled_events(scheduler* scheduler) {
     for (int i = 0; i < scheduler->list_size; i++) {
-        printf("Index: %X, ID: %lu, Timecode: %u\n", i, scheduler->event_list[i].id, scheduler->event_list[i].timecode);
+        printf("Index: %X, ID: %lu, Timecode: %lu\n", i, scheduler->event_list[i].id, scheduler->event_list[i].timecode);
     }
 }
 
 long schedule(scheduler* scheduler, int timecode, event_callback callback) {
     int i = scheduler->next_free_event;
     int id = scheduler->id_counter++;
+    
+    uint64_t master_timecode = scheduler->current_time + timecode;
 
-    scheduler->event_list[i].timecode = timecode;
+    scheduler->event_list[i].timecode = master_timecode;
     scheduler->event_list[i].callback = callback;
     scheduler->event_list[i].id = id;
 

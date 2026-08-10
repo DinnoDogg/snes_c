@@ -3,11 +3,12 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 typedef void (*event_callback)(void* state);
 
 typedef struct scheduler_event {
-    int timecode;
+    uint64_t timecode;
     long id;
     event_callback callback;
 } scheduler_event;
@@ -15,6 +16,7 @@ typedef struct scheduler_event {
 typedef struct scheduler {
     int list_size, next_free_event;
     long id_counter;
+    uint64_t current_time;
     scheduler_event* event_list;
 } scheduler;
 

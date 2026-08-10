@@ -50,6 +50,7 @@ void reset_cpu(s_cpu* cpu) {
 
     cpu->vblank_nmi_enable = false;
     cpu->vblank_flag = false;
+    cpu->memory_2_region_speed = false;
 }
 
 int cycle_cpu(s_cpu* cpu) {
@@ -61,28 +62,26 @@ int cycle_cpu(s_cpu* cpu) {
 uint8_t read_cpu_bus(void* cpu, uint32_t address, bool valid_access) {
     s_cpu* cpu_ptr = (s_cpu*) cpu;
 
-    cpu_ptr->waitstate_count += get_waitstates(cpu_ptr, address);
-
     uint8_t result = cpu_ptr->mdr;
 
     uint8_t bank = address >> 0x10;
-    uint8_t offset = (address >> 0x8) & 0xFF;
+    uint16_t offset = address & 0xFFFF;
 
     if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
 
-        if (offset < 0x20) {
+        if (offset < 0x2000) {
             result = cpu_ptr->bus.wram->memory[address & 0x1FFF];
         }
 
-        else if (offset == 0x21) {
+        else if (offset > 0x20FF && offset < 0x2200) {
             result = read_bus_b(cpu_ptr, address & 0xFF);
         }
 
-        else if (offset > 0x3F && offset < 0x44) {
+        else if (offset > 0x3FFF && offset < 0x4400) {
             result = read_internal_io(cpu_ptr, address & 0x3FF);
         }
 
-        else if (offset > 0x7F) {
+        else if (offset > 0x7FFF) {
             result = read_cart(cpu_ptr->bus.cart, address, cpu_ptr->mdr); 
         }
     }
@@ -97,6 +96,7 @@ uint8_t read_cpu_bus(void* cpu, uint32_t address, bool valid_access) {
 
     if (valid_access) {
         cpu_ptr->mdr = result;
+        cpu_ptr->waitstate_count += get_waitstates(cpu_ptr, address);
     }
 
     return result;
@@ -110,26 +110,26 @@ void write_cpu_bus(void* cpu, uint32_t address, uint8_t data) {
     cpu_ptr->mdr = data;
 
     uint8_t bank = address >> 0x10;
-    uint8_t offset = (address >> 0x8) & 0xFF;
+    uint16_t offset = address & 0xFFFF;
 
     if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
 
-        if (offset < 0x20) {
+        if (offset < 0x2000) {
             cpu_ptr->bus.wram->memory[address & 0x1FFF] = data;
             return;
         }
 
-        if (offset == 0x21) {
+        if (offset > 0x20FF && offset < 0x2200) {
             write_bus_b(cpu_ptr, address & 0xFF, data);
             return;
         }
 
-        if (offset > 0x3F && offset < 0x44) {
+        if (offset > 0x3FFF && offset < 0x4400) {
             write_internal_io(cpu_ptr, address & 0x3FF, data);
             return;
         }
 
-        if (offset > 0x7F) {
+        if (offset > 0x7FFF) {
             write_cart(cpu_ptr->bus.cart, address, data);
             return;
         }
@@ -152,6 +152,7 @@ uint8_t read_bus_b(s_cpu* cpu, uint8_t address) {
 
     else if (address < 0x80) {
         result = read_apu_io(cpu->bus.apu, address & 0x3);
+        //printf("apu port %u read %02X PC = %04X fussy = %06X\n", address & 0x3, cpu->bus.apu->io_port[address & 0x3].data_out, cpu->base.registers.pc.word, address);
     }
 
     else if (address == 0x80) {
@@ -242,10 +243,16 @@ uint8_t read_internal_io(s_cpu* cpu, uint16_t address) {
             result = 0;
             break;
     }
+
+    return result;
 }
 
 void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
     //printf("internal write\n");
+
+    if (address > 0x2FF) {
+        //printf("write to dma\n");
+    }
 
     switch (address) {
         case 0x016: //JOYWR
@@ -262,6 +269,8 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             }
 
             cpu->vblank_nmi_enable = nmi_enable;
+
+            //printf("nmitimen write\n");
 
             //schedule auto joypad
             //schedule irq

@@ -21,8 +21,8 @@ typedef struct wram {
 } wram;
 
 typedef struct snes {
-    apu* apu;
     scheduler* scheduler;
+    apu* apu;
     cart* cart;
     s_cpu* cpu;
 
