@@ -312,7 +312,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
 
             cpu->vblank_nmi_enable = nmi_enable;
 
-            printf("nmitimen write\n");
+            //printf("nmitimen write\n");
 
             //schedule auto joypad
             //schedule irq
