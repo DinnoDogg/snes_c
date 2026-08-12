@@ -13,6 +13,9 @@ static bool get_bit(int data, int index);
 static uint8_t read_cpu_bus(void* cpu, uint32_t address, bool valid_access);
 static void write_cpu_bus(void* cpu, uint32_t address, uint8_t data);
 
+static uint8_t read_bus_a(void* cpu, uint32_t address);
+static void write_bus_a(void* cpu, uint32_t address, uint8_t data);
+
 static uint8_t read_bus_b(s_cpu* cpu, uint8_t address);
 static void write_bus_b(s_cpu* cpu, uint8_t address, uint8_t data);
 
@@ -28,7 +31,7 @@ bool get_bit(int data, int index) {
 }
 
 s_cpu* new_cpu(cart* cart, wram* wram, apu* apu) {
-    s_cpu* result = malloc(sizeof(s_cpu));
+    s_cpu* result = calloc(1, sizeof(s_cpu));
 
     init_wdc65816((WDC65816*) result, &read_cpu_bus, &write_cpu_bus);
 
@@ -67,37 +70,31 @@ uint8_t read_cpu_bus(void* cpu, uint32_t address, bool valid_access) {
     uint8_t bank = address >> 0x10;
     uint16_t offset = address & 0xFFFF;
 
+    if (!valid_access) {
+        return result;
+    }
+
     if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
-
-        if (offset < 0x2000) {
-            result = cpu_ptr->bus.wram->memory[address & 0x1FFF];
-        }
-
-        else if (offset > 0x20FF && offset < 0x2200) {
-            result = read_bus_b(cpu_ptr, address & 0xFF);
+        
+        if (offset > 0x20FF && offset < 0x2200) {
+            result = read_bus_b(cpu, address & 0xFF);
         }
 
         else if (offset > 0x3FFF && offset < 0x4400) {
-            result = read_internal_io(cpu_ptr, address & 0x3FF);
+            result = read_internal_io(cpu, address & 0x3FF);
         }
 
-        else if (offset > 0x7FFF) {
-            result = read_cart(cpu_ptr->bus.cart, address, cpu_ptr->mdr); 
+        else {
+            result = read_bus_a(cpu, address);
         }
-    }
-
-    else if (bank == 0x7E || bank == 0x7F) {
-        result = cpu_ptr->bus.wram->memory[address & 0x1FFFF];
     }
 
     else {
-        result = read_cart(cpu_ptr->bus.cart, address, cpu_ptr->mdr); 
+        result = read_bus_a(cpu, address);
     }
 
-    if (valid_access) {
-        cpu_ptr->mdr = result;
-        cpu_ptr->waitstate_count += get_waitstates(cpu_ptr, address);
-    }
+    cpu_ptr->mdr = result;
+    cpu_ptr->waitstate_count += get_waitstates(cpu_ptr, address);
 
     return result;
 }
@@ -113,19 +110,64 @@ void write_cpu_bus(void* cpu, uint32_t address, uint8_t data) {
     uint16_t offset = address & 0xFFFF;
 
     if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
-
-        if (offset < 0x2000) {
-            cpu_ptr->bus.wram->memory[address & 0x1FFF] = data;
-            return;
-        }
-
+        
         if (offset > 0x20FF && offset < 0x2200) {
-            write_bus_b(cpu_ptr, address & 0xFF, data);
+            write_bus_b(cpu, address & 0xFF, data);
             return;
         }
 
         if (offset > 0x3FFF && offset < 0x4400) {
-            write_internal_io(cpu_ptr, address & 0x3FF, data);
+            write_internal_io(cpu, address & 0x3FF, data);
+            return;
+        }
+
+        else {
+            write_bus_a(cpu, address, data);
+            return;
+        }
+    }
+
+    write_bus_a(cpu, address, data);
+}
+
+uint8_t read_bus_a(void* cpu, uint32_t address) {
+    s_cpu* cpu_ptr = (s_cpu*) cpu;
+
+    uint8_t result = cpu_ptr->mdr;
+
+    uint8_t bank = address >> 0x10;
+    uint16_t offset = address & 0xFFFF;
+
+    if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
+        if (offset < 0x2000) {
+            result = cpu_ptr->bus.wram->memory[address & 0x1FFF];
+        }
+
+        else if (offset > 0x7FFF) {
+            result = read_cart(cpu_ptr->bus.cart, address, cpu_ptr->mdr);
+        }
+    }
+
+    else if (bank == 0x7E || bank == 0x7F) {
+        result = cpu_ptr->bus.wram->memory[address & 0x1FFFF];
+    }
+
+    else {
+        result = read_cart(cpu_ptr->bus.cart, address, cpu_ptr->mdr);
+    }
+
+    return result;
+}
+
+void write_bus_a(void* cpu, uint32_t address, uint8_t data) {
+    s_cpu* cpu_ptr = (s_cpu*) cpu;
+
+    uint8_t bank = address >> 0x10;
+    uint16_t offset = address & 0xFFFF;
+
+    if (bank < 0x40 || (bank > 0x7F && bank < 0xC0)) {
+        if (offset < 0x2000) {
+            cpu_ptr->bus.wram->memory[address & 0x1FFF] = data;
             return;
         }
 
@@ -270,7 +312,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
 
             cpu->vblank_nmi_enable = nmi_enable;
 
-            //printf("nmitimen write\n");
+            printf("nmitimen write\n");
 
             //schedule auto joypad
             //schedule irq

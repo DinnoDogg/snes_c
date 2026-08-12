@@ -65,7 +65,7 @@ const char* get_coprocessor_name(coprocessor_type type) {
         case S_RTC: return "S-RTC";
         case SUPER_GAMEBOY: return "SUPER GAMEBOY";
         case CUSTOM: return "CUSTOM";
-        case NO_COPROCESSOR: "NO COPROCESSOR";
+        case NO_COPROCESSOR: return "NO COPROCESSOR";
     }
 }
 
@@ -143,7 +143,7 @@ cart* new_lorom_cart(uint8_t* rom_buffer) {
         return NULL;
     }
 
-    result = malloc(sizeof(cart));
+    result = calloc(1, sizeof(cart));
 
     if (chipset.has_ram && ram_size) {
         ram_size = 1 << ram_size;
@@ -152,7 +152,7 @@ cart* new_lorom_cart(uint8_t* rom_buffer) {
         printf("RAM battery backing: %u\n", chipset.has_battery);
 
         ram_size <<= 0xA;
-        result->ram = calloc(ram_size, 1); 
+        result->ram = calloc(1, ram_size); 
     }
 
     printf("ROM size: %u Kib\n", rom_size);
@@ -171,7 +171,7 @@ cart* new_lorom_cart(uint8_t* rom_buffer) {
     memcpy(title, header, 21);
     title[21] = '\0';
 
-    printf("Rom title: %s\n", title);
+    printf("Game title: %s\n", title);
 
     result->read = &read_lorom_cart;
     result->write = &write_lorom_cart;

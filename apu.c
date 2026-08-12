@@ -42,7 +42,7 @@ bool get_bit(int value, int index) {
 }
 
 apu* new_apu(uint8_t* audio_ram, scheduler* scheduler) {
-    apu* result = malloc(sizeof(apu));
+    apu* result = calloc(1, sizeof(apu));
 
     result->bus.audio_ram = audio_ram;
     //dsp
@@ -258,7 +258,7 @@ void timer_0_tick(void* state) {
 
 void timer_1_tick(void* state) {
     snes* snes_ptr = (snes*) state;
-    //tick_timer(snes_ptr->apu, 1);
+    tick_timer(snes_ptr->apu, 1);
 }
 
 void timer_2_tick(void* state) {

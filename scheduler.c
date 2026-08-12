@@ -8,8 +8,8 @@
 static long schedule(scheduler* scheduler, int timecode, event_callback callback);
 
 scheduler* new_scheduler(int length) {
-    scheduler* result = calloc(sizeof(scheduler), 1);
-    result->event_list = calloc(sizeof(scheduler_event), length);
+    scheduler* result = calloc(1, sizeof(scheduler));
+    result->event_list = calloc(length, sizeof(scheduler_event));
     result->list_size = length;
     return result;
 }

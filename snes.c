@@ -14,7 +14,7 @@ static void schedule_apu_op(snes* snes, int timecode);
 static void handle_apu_op(void* state);
 
 snes* new_snes(cart* cart) {
-    snes* result = malloc(sizeof(snes));
+    snes* result = calloc(1, sizeof(snes));
 
     result->cart = cart;
 

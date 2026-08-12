@@ -100,7 +100,7 @@ void cycle_wdc65816(WDC65816* cpu) {
 
         uint8_t opcode = read_immediate(cpu);
 
-        //printf("65816 opcode %02X at %04X\n", opcode, cpu->registers.pc.word - 1);
+        //printf("65816 opcode %02X at %06X\n", opcode, (cpu->registers.pc.word - 1) | cpu->registers.pbr << 16);
         
         switch (opcode) {
             EXEC_OP_M(0x2D, schedule_addr_a, schedule_and, false);

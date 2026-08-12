@@ -21,9 +21,9 @@
 
 typedef uint8_t (*algorithm)(SPC700* cpu, uint8_t a, uint8_t b);
 
-const static int direct_page_base[2] = {0x0000, 0x0100}; 
+static const int direct_page_base[2] = {0x0000, 0x0100}; 
 
-const static int cycle_table[0x100] = {
+static const int cycle_table[0x100] = {
     2, 8, 4, 5, 3, 4, 3, 6, 2, 6, 5, 4, 5, 4, 6, 8, 
     2, 8, 4, 5, 4, 5, 5, 6, 5, 5, 6, 5, 2, 2, 4, 6, 
     2, 8, 4, 5, 3, 4, 3, 6, 2, 6, 5, 4, 5, 4, 5, 2, 
@@ -638,14 +638,26 @@ void handle_op_indr_indr(SPC700* cpu, algorithm op) {
     uint16_t addr_x = cpu->registers.x | get_dp_base(cpu), addr_y = cpu->registers.y | get_dp_base(cpu);
     uint8_t source = read(cpu, addr_y), dest = read(cpu, addr_x);
     uint8_t result = op(cpu, dest, source);
-    (cpu->dummy_read) ? read(cpu, dest) : write(cpu, addr_x, result);
+
+    if (cpu->dummy_read) { 
+        read(cpu, dest);
+        return;
+    }  
+    
+    write(cpu, addr_x, result);
 }
 
 void handle_op_dp_dp(SPC700* cpu, algorithm op) {
     uint16_t addr_s = read_immediate(cpu) | get_dp_base(cpu), addr_d = read_immediate(cpu) | get_dp_base(cpu);
     uint8_t source = read(cpu, addr_s), dest = read(cpu, addr_d);
     uint8_t result = op(cpu, dest, source);
-    (cpu->dummy_read) ? read(cpu, dest) : write(cpu, addr_d, result);
+
+    if (cpu->dummy_read) { 
+        read(cpu, dest);
+        return;
+    }  
+    
+    write(cpu, addr_d, result);
 }
 
 void handle_op_dp_imm(SPC700* cpu, algorithm op) {
@@ -653,7 +665,13 @@ void handle_op_dp_imm(SPC700* cpu, algorithm op) {
     uint16_t addr_d = read_immediate(cpu) | get_dp_base(cpu);
     uint8_t dest = read(cpu, addr_d);
     uint8_t result = op(cpu, dest, source);
-    (cpu->dummy_read) ? read(cpu, dest) : write(cpu, addr_d, result);
+    
+    if (cpu->dummy_read) { 
+        read(cpu, dest);
+        return;
+    }  
+    
+    write(cpu, addr_d, result);
 }
 
 uint8_t get_mem_bit(SPC700* cpu) {

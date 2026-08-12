@@ -56,16 +56,16 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     long start = get_nanos(&ts);
 
-    int frame_count = 5000;
+    uint64_t frame_count = 20000;
 
     while (snes->scheduler->current_time < 357368 * frame_count) {
-        scheduler_event* next_event = get_next_event(snes->scheduler);
+        scheduler_event* next_event = &snes->scheduler->event_list[0];
 
         while(snes->scheduler->current_time >= next_event->timecode) {
             long id = next_event->id;
             next_event->callback(snes);
             remove_event(snes->scheduler, id);
-            next_event = get_next_event(snes->scheduler);
+            next_event = &snes->scheduler->event_list[0];
         }
 
         int cycles_elapsed = cycle_cpu(snes->cpu);
@@ -95,6 +95,8 @@ int main(int argc, char *argv[]) {
     }
 
     printf("elapsed ms %f  averaging %f ms per frame (%u frames) \n", elapsed, average, frame_count);
+
+    printf("sussy jew jew %02X\n", read_cart(cart, 0x008653, 0x69));
 
     free_cart(cart);
     free_snes(snes);
