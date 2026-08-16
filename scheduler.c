@@ -101,3 +101,18 @@ long schedule(scheduler* scheduler, int timecode, event_callback callback) {
     scheduler->next_free_event++;
     return id;
 }
+
+void scheduler_catch_up(scheduler* scheduler, long time, void* state) {
+    uint64_t target = scheduler->current_time + time;
+    scheduler_event* next_event = &scheduler->event_list[0];
+
+    while (scheduler->current_time < target) {
+        long id = next_event->id;
+        next_event->callback(state);
+
+        scheduler->current_time = next_event->timecode;
+
+        remove_event(scheduler, id);
+        next_event = &scheduler->event_list[0];
+    }
+}

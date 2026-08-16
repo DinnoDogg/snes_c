@@ -270,10 +270,6 @@ void tick_timer(apu* apu, int timer_number) {
     apu_timer* timer = &apu->timer[timer_number];
     timer_tick_callback callback = tick_callback[timer_number];
 
-    //printf("I am a sussy rizzler tick tick %u\n", timer_number);
-
-    //print_scheduled_events(apu->scheduler);
-
     int next_time = master_cycles_per_timer_tick[timer_number];
 
     if (++timer->internal_counter == timer->interval) {

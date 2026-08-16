@@ -17,7 +17,9 @@ typedef struct scheduler {
     int list_size, next_free_event;
     long id_counter;
     uint64_t current_time;
+    
     scheduler_event* event_list;
+    void* state;
 } scheduler;
 
 scheduler* new_scheduler(int length);
@@ -28,6 +30,8 @@ void remove_event(scheduler* scheduler, int id);
 
 bool schedule_event(scheduler* scheduler, int timecode, event_callback callback);
 bool schedule_event_set_id(scheduler* scheduler, long* event_id, int timecode, event_callback callback);
+
+void scheduler_catch_up(scheduler* scheduler, long time, void* state);
 
 void print_scheduled_events(scheduler* scheduler);
 

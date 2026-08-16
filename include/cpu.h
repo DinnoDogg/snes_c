@@ -6,6 +6,7 @@
 #include "processor/wdc65816/wdc65816.h"
 #include "cart.h"
 #include "apu.h"
+#include "scheduler.h"
 
 typedef struct wram wram;
 
@@ -13,9 +14,13 @@ typedef enum cpu_waitstate_speed {
     CPU_WAITSTATE_FAST = 0, CPU_WAITSTATE_SLOW = 2, CPU_WAITSTATE_X_SLOW = 6
 } cpu_waitstate_speed;
 
-typedef enum dma_adjust_node {
-    DMA_ADDRESS_INCREMENT, DMA_ADDRESS_DECREMENT, DMA_ADDRESS_CONSTANT
-} dma_adjust_node;
+typedef enum dma_address_mode {
+    DMA_ADDRESS_INCREMENT, DMA_ADDRESS_CONSTANT, DMA_ADDRESS_DECREMENT 
+} dma_address_mode;
+
+typedef enum dma_transfer_direction {
+    DMA_DIRECTION_A_B, DMA_DIRECTION_B_A
+} dma_transfer_direction;
 
 typedef struct cpu_dma_channel {
     uint8_t bus_b_address;
@@ -25,16 +30,20 @@ typedef struct cpu_dma_channel {
         uint16_t offset;
     } bus_a_address;
 
+    dma_transfer_direction direction;
+    dma_address_mode address_a_mode;
+
     uint32_t count;
+    uint8_t pattern;
 
-    bool transfer_direction;
+    bool enabled;
 
-
-
+    uint8_t unused_byte;
 } cpu_dma_channel;
 
 typedef struct s_cpu {
     WDC65816 base;
+    scheduler* scheduler;
 
     int waitstate_count;
 
@@ -48,6 +57,9 @@ typedef struct s_cpu {
     cpu_dma_channel dma_channel[0x8];
 
     uint8_t mdr;
+
+    bool dma_active;
+    uint8_t active_dma_channel;
 
     bool nmi_flag;
     bool irq_flag;
@@ -71,7 +83,7 @@ typedef struct s_cpu {
     bool memory_2_region_speed;
 } s_cpu;
 
-s_cpu* new_cpu(cart* cart, wram* wram, apu* apu);
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu);
 void free_cpu(s_cpu* cpu);
 
 int cycle_cpu(s_cpu* cpu);

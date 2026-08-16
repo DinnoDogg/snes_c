@@ -22,7 +22,13 @@ static void write_bus_b(s_cpu* cpu, uint8_t address, uint8_t data);
 static uint8_t read_internal_io(s_cpu* cpu, uint16_t address);
 static void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data);
 
+static uint8_t read_dma_io(s_cpu* cpu, uint16_t address);
+static void write_dma_io(s_cpu* cpu, uint16_t address, uint8_t data);
+
 static cpu_waitstate_speed get_waitstates(s_cpu* cpu, uint32_t address);
+
+static int get_dma_pattern_increment(uint32_t bytes_transfered, uint8_t pattern);
+static void handle_dma(void* state);
 
 static const int GLOBAL_CPU_VERSION = 2;
 
@@ -30,10 +36,12 @@ bool get_bit(int data, int index) {
     return (data >> index) & 0x1;
 }
 
-s_cpu* new_cpu(cart* cart, wram* wram, apu* apu) {
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu) {
     s_cpu* result = calloc(1, sizeof(s_cpu));
 
     init_wdc65816((WDC65816*) result, &read_cpu_bus, &write_cpu_bus);
+
+    result->scheduler = scheduler;
 
     result->bus.wram = wram;
     result->bus.apu = apu;
@@ -224,6 +232,10 @@ void write_bus_b(s_cpu* cpu, uint8_t address, uint8_t data) {
 }
 
 uint8_t read_internal_io(s_cpu* cpu, uint16_t address) {
+    if (address > 0x2FF) {
+        return read_dma_io(cpu, address);
+    }
+
     uint8_t result = cpu->mdr;
 
     switch (address) {
@@ -290,10 +302,9 @@ uint8_t read_internal_io(s_cpu* cpu, uint16_t address) {
 }
 
 void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
-    //printf("internal write\n");
-
     if (address > 0x2FF) {
-        //printf("write to dma\n");
+        write_dma_io(cpu, address, data);
+        return;
     }
 
     switch (address) {
@@ -371,7 +382,36 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             break;
 
         case 0x20B: //MDMAEN
-            //dma
+            if (data == 0) {
+                break;
+            }
+
+            long next_time = 0;
+
+            for (int i = 8; i > 0; i--) {
+                int channel_number = i - 1;
+
+                cpu_dma_channel* channel = &cpu->dma_channel[channel_number];
+                bool channel_enable = get_bit(data, channel_number);
+
+                channel->enabled = channel_enable;
+                
+                if (!channel_enable) {
+                    continue;
+                }
+
+                if (channel->count == 0) {
+                    channel->count = 0x10000;
+                }
+
+                schedule_event(cpu->scheduler, next_time, &handle_dma);
+
+                next_time += 16; //initialization and end INACCURATE
+                next_time += channel->count * 8; //8 cycles per byte;
+
+                cpu->active_dma_channel = channel_number;
+            }
+
             break;
 
         case 0x20C: //HDMAEN
@@ -382,8 +422,137 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             bool speed = get_bit(data, 0);
             cpu->memory_2_region_speed = speed;
             break; 
+    }
+}
 
-        //dma
+uint8_t read_dma_io(s_cpu* cpu, uint16_t address) {
+    uint8_t channel_number = (address & 0xF0) >> 4;
+    uint8_t port = address & 0xF;
+
+    uint8_t result = cpu->mdr;
+
+    cpu_dma_channel* channel = &cpu->dma_channel[channel_number];
+
+    switch (port) {
+        case 0x0: //DMAPx
+            result &= 0x20;
+            result |= (channel->direction << 0x7) /*| (channel->hdma indirect << 6)*/ | (channel->address_a_mode << 0x3) | channel->pattern;
+            break;
+
+        case 0x1: //BBADx
+            result = channel->bus_b_address;
+            break;
+
+        case 0x2: //A1TxL
+            result = channel->bus_a_address.offset &= 0xFF;
+            break;
+
+        case 0x3: //A1TxH
+            result = channel->bus_a_address.offset >> 0x8;
+            break;
+
+        case 0x4: //A1Bx
+            result = channel->bus_a_address.bank;
+            break;
+
+        case 0x5: //DASxL
+            result = channel->count & 0xFF;
+            break;
+
+        case 0x6: //DASxH
+            result = channel->count >> 0x8;
+            break;
+
+        case 0x7: //DASBx
+            //hdma
+            break;
+
+        case 0x8: //A2AxL
+            //hdma
+            break;
+
+        case 0x9: //A2AxH
+            //hdma
+            break;
+
+        case 0xA: //NTRLx
+            //hdma
+            break;
+
+        case 0xB: case 0xF: //UNUSEDx
+            result = channel->unused_byte;
+            break;
+    }
+
+    return result;
+}
+
+void write_dma_io(s_cpu* cpu, uint16_t address, uint8_t data) {
+    uint8_t channel_number = (address & 0xF0) >> 4;
+    uint8_t port = address & 0xF;
+
+    cpu_dma_channel* channel = &cpu->dma_channel[channel_number];
+
+    switch (port) {
+        case 0x0: //DMAPx
+            bool transfer_direction = get_bit(data, 7);
+            uint8_t address_a_mode = (data >> 0x3) & 0x3;
+            uint8_t pattern = data & 0x7;
+            
+            //hdma 
+
+            channel->direction = transfer_direction;
+            channel->address_a_mode = address_a_mode;
+            channel->pattern = pattern;
+            break;
+
+        case 0x1: //BBADx
+            channel->bus_b_address = data;
+            break;
+
+        case 0x2: //A1TxL
+            channel->bus_a_address.offset &= 0xFF00;
+            channel->bus_a_address.offset |= data;
+            break;
+
+        case 0x3: //A1TxH
+            channel->bus_a_address.offset &= 0xFF;
+            channel->bus_a_address.offset |= data << 8;
+            break;
+
+        case 0x4: //A1Bx
+            channel->bus_a_address.bank = data;
+            break;
+
+        case 0x5: //DASxL
+            channel->count &= 0xFF00;
+            channel->count |= data;
+            break;
+
+        case 0x6: //DASxH
+            channel->count &= 0xFF;
+            channel->count |= data << 8;
+            break;
+
+        case 0x7: //DASBx
+            //hdma
+            break;
+
+        case 0x8: //A2AxL
+            //hdma
+            break;
+
+        case 0x9: //A2AxH
+            //hdma
+            break;
+
+        case 0xA: //NTRLx
+            //hdma
+            break;
+
+        case 0xB: case 0xF: //UNUSEDx
+            channel->unused_byte = data;
+            break;
     }
 }
 
@@ -424,4 +593,78 @@ cpu_waitstate_speed get_waitstates(s_cpu* cpu, uint32_t address) {
     }
 
     return cpu->memory_2_region_speed ? CPU_WAITSTATE_FAST : CPU_WAITSTATE_SLOW;
+}
+
+int get_dma_pattern_increment(uint32_t bytes_transfered, uint8_t pattern) {
+    pattern &= 0x7;
+
+    switch (pattern) {
+        default: return 0;
+        case 1: case 5: return bytes_transfered & 0x1;
+        case 3: case 7: return (bytes_transfered >> 0x1) & 0x1;
+        case 4: return bytes_transfered & 0x3;
+    }
+}
+
+void handle_dma(void* state) {
+    snes* snes_ptr = (snes*) state;
+    s_cpu* cpu = snes_ptr->cpu;
+
+    cpu_dma_channel* channel;
+
+    while (true) {
+        if (cpu->dma_channel[cpu->active_dma_channel].enabled) {
+            channel = &cpu->dma_channel[cpu->active_dma_channel];
+            break;
+        }
+
+        cpu->active_dma_channel++;
+
+        if (cpu->active_dma_channel >= 8) {
+            return;
+        }
+    }
+
+    cpu->scheduler->current_time += 16; //start and end INACCURATE
+
+    uint32_t transfered = 0;
+    int address_a_increment = 0;
+
+    if (channel->address_a_mode == DMA_ADDRESS_INCREMENT) {
+        address_a_increment = 1;
+    }
+
+    else if (channel->address_a_mode == DMA_ADDRESS_DECREMENT) {
+        address_a_increment = -1;
+    }
+
+    while (channel->count != 0) {
+        uint8_t data;
+
+        uint32_t addr_a = (channel->bus_a_address.bank << 16) | channel->bus_a_address.offset;
+        uint8_t addr_b = channel->bus_b_address + get_dma_pattern_increment(transfered, channel->pattern); 
+
+        if (channel->direction == DMA_DIRECTION_A_B) {
+            data = read_bus_a(cpu, addr_a);
+            write_bus_b(cpu, addr_b, data);
+        }
+
+        else {
+            data = read_bus_b(cpu, addr_b);
+            write_bus_a(cpu, addr_a, data);
+        }
+
+        channel->bus_a_address.offset += address_a_increment;
+
+        transfered++;
+        channel->count--;
+    }
+
+    //cpu->scheduler->current_time += transfered * 8; //fix later
+    channel->enabled = false;
+
+    //printf("sussy %u sussy %llu\n", transfered * 8, cpu->scheduler->current_time);
+    //print_scheduled_events(cpu->scheduler);
+
+    scheduler_catch_up(cpu->scheduler, transfered * 8, state);
 }

@@ -21,7 +21,7 @@ snes* new_snes(cart* cart) {
     result->scheduler = new_scheduler(SYSTEM_EVENT_COUNT);
 
     result->apu = new_apu(result->audio_ram, result->scheduler);
-    result->cpu = new_cpu(result->cart, &result->wram, result->apu);
+    result->cpu = new_cpu(result->cart, result->scheduler, &result->wram, result->apu);
 
     init_scheduler(result);
     
