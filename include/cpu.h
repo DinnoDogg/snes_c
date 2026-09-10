@@ -54,6 +54,8 @@ typedef struct s_cpu {
         //joypad
     } bus;
 
+    int* cycle_count;
+
     cpu_dma_channel dma_channel[0x8];
 
     uint8_t mdr;
@@ -64,8 +66,10 @@ typedef struct s_cpu {
     bool nmi_flag;
     bool irq_flag;
 
-    bool vblank_flag;
-    bool hblank_flag;
+    bool timer_irq_enabled;
+    long irq_event_id;
+
+    bool vblank_flag, hblank_flag;
     bool auto_joypad_busy;
 
     uint16_t quotient;
@@ -83,7 +87,7 @@ typedef struct s_cpu {
     bool memory_2_region_speed;
 } s_cpu;
 
-s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu);
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, int* cycle_count);
 void free_cpu(s_cpu* cpu);
 
 int cycle_cpu(s_cpu* cpu);

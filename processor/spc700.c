@@ -102,13 +102,13 @@ bool get_bit(int value, int index) {
 }
 
 void spc700_run_instruction(SPC700* cpu) {
-    //uint16_t pee_see = cpu->registers.pc;
+    uint16_t pee_see = cpu->registers.pc;
     uint8_t opcode = read_immediate(cpu);
 
     cpu->opcode = opcode;
     cpu->cycle_count = spc700_get_op_time(opcode);
 
-    //printf("SPC Opcode: %02X at %04X\n", opcode, pee_see);
+    printf("SPC Opcode: %02X at %04X\n", opcode, pee_see);
 
     switch (opcode) {
         EXEC_OP(0xE8, addr_imm, mov_a_mem, false);

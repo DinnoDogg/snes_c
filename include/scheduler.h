@@ -31,8 +31,6 @@ void remove_event(scheduler* scheduler, int id);
 bool schedule_event(scheduler* scheduler, int timecode, event_callback callback);
 bool schedule_event_set_id(scheduler* scheduler, long* event_id, int timecode, event_callback callback);
 
-void scheduler_catch_up(scheduler* scheduler, long time, void* state);
-
 void print_scheduled_events(scheduler* scheduler);
 
 #endif

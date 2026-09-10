@@ -56,21 +56,12 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     long start = get_nanos(&ts);
 
-    uint64_t frame_count = 5000;
+    uint64_t frame_count = 2000;
 
-    scheduler_event* next_event = &snes->scheduler->event_list[0];
 
     while (snes->scheduler->current_time < 357368 * frame_count) {
-
-        while(snes->scheduler->current_time >= next_event->timecode) {
-            long id = next_event->id;
-            next_event->callback(snes);
-            remove_event(snes->scheduler, id);
-            next_event = &snes->scheduler->event_list[0];
-        }
-
         int cycles_elapsed = cycle_cpu(snes->cpu);
-        snes->scheduler->current_time += cycles_elapsed;
+        snes_run_for(snes, cycles_elapsed);
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);

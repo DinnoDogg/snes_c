@@ -28,6 +28,8 @@ typedef struct snes {
 
     wram wram;
     uint8_t audio_ram[0x10000];
+
+    int cycle_count;
 } snes;
 
 snes* new_snes(cart* cart);
@@ -35,5 +37,7 @@ void free_snes(snes* snes);
 
 uint8_t read_wram_io(wram* wram);
 void write_wram_io(wram* wram, uint8_t address, uint8_t data);
+
+void snes_run_for(snes* snes, uint64_t cycle_count);
 
 #endif

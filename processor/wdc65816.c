@@ -84,23 +84,34 @@ void cycle_wdc65816(WDC65816* cpu) {
 
         if (cpu->nmi_latch) {
             handle_interrupt(cpu, VECTOR_NMI);
+            cpu->nmi_latch = false;
+
+            printf("EN EM EYE!!\n");
             return;
         }
 
         if (cpu->irq_pending) {
             handle_interrupt(cpu, VECTOR_IRQ);
+
+            printf("EYE ARE QUEUE!!\n");
             return;
         } 
 
         if (cpu->wai) {
             dummy_read_pc(cpu);
             cpu->current_cycle = 0;
+
+            cpu->nmi_latch = cpu->nmi_latch || (cpu->nmi_line && !cpu->last_nmi_line);
+            cpu->last_nmi_line = cpu->nmi_line;
+
+            cpu->irq_pending = !get_flag(cpu, WDC_FLAG_I) & cpu->irq_line;
+
             return;
         }
 
         uint8_t opcode = read_immediate(cpu);
 
-        //printf("65816 opcode %02X at %06X\n", opcode, (cpu->registers.pc.word - 1) | cpu->registers.pbr << 16);
+        printf("65816 opcode %02X at %06X\n", opcode, (cpu->registers.pc.word - 1) | cpu->registers.pbr << 16);
         
         switch (opcode) {
             EXEC_OP_M(0x2D, schedule_addr_a, schedule_and, false);
@@ -411,7 +422,9 @@ void cycle_wdc65816(WDC65816* cpu) {
         cpu->cycle_lookup[cpu->current_cycle - 2](cpu);
     }
 
-    cpu->nmi_latch = cpu->nmi_line && !cpu->last_nmi_line;
+    //printf("line: %u, last line: %u\n", cpu->nmi_line, cpu->last_nmi_line);
+
+    cpu->nmi_latch = cpu->nmi_latch || (cpu->nmi_line && !cpu->last_nmi_line);
     cpu->last_nmi_line = cpu->nmi_line;
 
     return;
@@ -474,6 +487,14 @@ void handle_interrupt(WDC65816* cpu, WDC65816_vector vector) {
     cpu->wai = false;
     schedule_interrupt(cpu);
     dummy_read_pc(cpu);
+}
+
+void wdc65816_set_nmi_line(WDC65816* cpu, bool nmi_line) {
+    cpu->nmi_line = nmi_line;
+}
+
+void wdc65816_set_irq_line(WDC65816* cpu, bool irq_line) {
+    cpu->irq_line = irq_line;
 }
 
 int wdc65816_run_instruction(WDC65816* cpu) {

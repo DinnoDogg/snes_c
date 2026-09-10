@@ -221,8 +221,6 @@ void write_internal_io(apu* apu, uint8_t address, uint8_t data) {
             apu->ipl_enable = ipl_enable;
             break;
 
-            bool schedule_event_set_id(scheduler* scheduler, long* event_id, int timecode, event_callback callback);
-
         case 0x4: case 0x5: case 0x6: case 0x7:
             uint8_t port = address & 0x3;
             apu->io_port[port].data_out = data;

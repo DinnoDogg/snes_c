@@ -27,8 +27,12 @@ static void write_dma_io(s_cpu* cpu, uint16_t address, uint8_t data);
 
 static cpu_waitstate_speed get_waitstates(s_cpu* cpu, uint32_t address);
 
+static void schedule_timer_irq(s_cpu* cpu);
+
 static int get_dma_pattern_increment(uint32_t bytes_transfered, uint8_t pattern);
 static void handle_dma(void* state);
+
+static void handle_timer_irq(void* state);
 
 static const int GLOBAL_CPU_VERSION = 2;
 
@@ -36,7 +40,7 @@ bool get_bit(int data, int index) {
     return (data >> index) & 0x1;
 }
 
-s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu) {
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, int* cycle_count) {
     s_cpu* result = calloc(1, sizeof(s_cpu));
 
     init_wdc65816((WDC65816*) result, &read_cpu_bus, &write_cpu_bus);
@@ -46,6 +50,8 @@ s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu) {
     result->bus.wram = wram;
     result->bus.apu = apu;
     result->bus.cart = cart;
+
+    result->cycle_count = cycle_count;
 
     reset_cpu(result);
 
@@ -62,11 +68,24 @@ void reset_cpu(s_cpu* cpu) {
     cpu->vblank_nmi_enable = false;
     cpu->vblank_flag = false;
     cpu->memory_2_region_speed = false;
+
+    for (int i = 0; i < 8; i++) {
+        cpu->dma_channel[i].bus_b_address = 0xFF;
+        cpu->dma_channel[i].bus_a_address.offset = 0xFFFF;
+        cpu->dma_channel[i].bus_a_address.bank = 0xFF;
+        cpu->dma_channel[i].count = 0xFFFF;
+        cpu->dma_channel[i].unused_byte = 0xFF;
+        cpu->dma_channel[i].enabled = false;
+    }
 }
 
 int cycle_cpu(s_cpu* cpu) {
     cpu->waitstate_count = 0;
     cycle_wdc65816((WDC65816*) cpu);
+    
+    wdc65816_set_nmi_line((WDC65816*) cpu, cpu->nmi_flag && cpu->vblank_nmi_enable);
+    wdc65816_set_irq_line((WDC65816*) cpu, cpu->irq_flag);
+
     return CLOCK_DIVISOR_CPU + cpu->waitstate_count;
 }
 
@@ -317,16 +336,23 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             bool auto_joypad_enable = get_bit(data, 0);
             uint8_t h_v_irq_mode = (data & 0x30) >> 4;
 
-            if (h_v_irq_mode == 0) {
+            cpu->irq_flag = h_v_irq_mode;
+
+            if (!h_v_irq_mode) {
                 cpu->irq_flag = false;
+
+                if (cpu->timer_irq_enabled) {
+                    remove_event(cpu->scheduler, cpu->irq_event_id);
+                    cpu->timer_irq_enabled = false;
+                }
+            }
+
+            else {
+                //schedule_timer_irq(cpu);
             }
 
             cpu->vblank_nmi_enable = nmi_enable;
-
-            //printf("nmitimen write\n");
-
             //schedule auto joypad
-            //schedule irq
             break;
 
         case 0x201: //WRIO
@@ -410,6 +436,22 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
                 next_time += channel->count * 8; //8 cycles per byte;
 
                 cpu->active_dma_channel = channel_number;
+
+                printf("\nChannel %u\n", channel_number);
+                printf("Address A: %lu\n", (channel->bus_a_address.bank << 16) | channel->bus_a_address.offset);
+                printf("Address B: %u\n", channel->bus_b_address);
+                printf("Direction: %s\n", channel->direction ? "B -> A" : "A -> B");
+                printf("Address mode: ");
+
+                switch (channel->address_a_mode) {
+                    case DMA_ADDRESS_INCREMENT: printf("Increment\n"); break;
+                    case DMA_ADDRESS_DECREMENT: printf("Decrement\n"); break;
+                    default: printf("Constant\n"); break;
+                }
+
+                printf("Count %u\n", channel->count);
+                printf("Pattern %u\n\n", channel->pattern);
+
             }
 
             break;
@@ -595,6 +637,43 @@ cpu_waitstate_speed get_waitstates(s_cpu* cpu, uint32_t address) {
     return cpu->memory_2_region_speed ? CPU_WAITSTATE_FAST : CPU_WAITSTATE_SLOW;
 }
 
+void schedule_timer_irq(s_cpu* cpu) {
+    if (!cpu->timer_irq_enabled) {
+        return;
+    }
+
+    /*remove_event(cpu->scheduler, cpu->irq_event_id);
+
+    int h_pos = (*cpu->cycle_count >> 2) % 342;
+    int v_pos = *cpu->cycle_count / 1364;
+
+    int interrupt_time;
+
+    switch (h_v_irq_mode) {
+        case 1:
+            interrupt_time = (cpu->h_timer_count - h_pos) * 4;
+            break;
+
+        case 2:
+            interrupt_time = (cpu->v_timer_count - v_pos) * 1364;
+            interrupt_time -= h_pos * 4;
+            break;
+
+        case 3:
+            interrupt_time = (cpu->v_timer_count - v_pos) * 1364;
+            interrupt_time += cpu->h_timer_count * 4;
+
+            interrupt_time -= h_pos*4;
+            break;
+    }
+
+    if (interrupt_time < 0) {
+        interrupt_time += 357368;
+    }
+
+    schedule_event_set_id(cpu->scheduler, &cpu->irq_event_id, interrupt_time, &handle_timer_irq);*/
+}
+
 int get_dma_pattern_increment(uint32_t bytes_transfered, uint8_t pattern) {
     pattern &= 0x7;
 
@@ -624,8 +703,6 @@ void handle_dma(void* state) {
             return;
         }
     }
-
-    cpu->scheduler->current_time += 16; //start and end INACCURATE
 
     uint32_t transfered = 0;
     int address_a_increment = 0;
@@ -666,5 +743,10 @@ void handle_dma(void* state) {
     //printf("sussy %u sussy %llu\n", transfered * 8, cpu->scheduler->current_time);
     //print_scheduled_events(cpu->scheduler);
 
-    scheduler_catch_up(cpu->scheduler, transfered * 8, state);
+    snes_run_for(snes_ptr, (transfered * 8) + 16);
+}
+
+void handle_timer_irq(void* state) {
+    snes* snes_ptr = (snes*) state;
+    snes_ptr->cpu->irq_flag = true;
 }

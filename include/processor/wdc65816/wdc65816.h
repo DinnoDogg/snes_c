@@ -81,4 +81,7 @@ void wdc65816_print_state(WDC65816* cpu);
 
 void wdc65816_reset(WDC65816* cpu);
 
+void wdc65816_set_nmi_line(WDC65816* cpu, bool nmi_line);
+void wdc65816_set_irq_line(WDC65816* cpu, bool irq_line);
+
 #endif

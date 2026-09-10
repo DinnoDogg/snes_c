@@ -24,20 +24,24 @@ scheduler_event* get_next_event(scheduler* scheduler) {
 }
 
 bool schedule_event(scheduler* scheduler, int timecode, event_callback callback) {
-    if (scheduler->next_free_event == scheduler->list_size) {
+    if (scheduler->next_free_event >= scheduler->list_size) {
         return false;
     }
 
-    schedule(scheduler, timecode, callback);
+    uint64_t time = scheduler->current_time + timecode;
+
+    schedule(scheduler, time, callback);
     return true;
 }
 
 bool schedule_event_set_id(scheduler* scheduler, long* event_id, int timecode, event_callback callback) {
-    if (scheduler->next_free_event == scheduler->list_size) {
+    if (scheduler->next_free_event >= scheduler->list_size) {
         return false;
     }
 
-    *event_id = schedule(scheduler, timecode, callback);
+    uint64_t time = scheduler->current_time + timecode;
+
+    *event_id = schedule(scheduler, time, callback);
     return true;
 }
 
@@ -82,10 +86,8 @@ void print_scheduled_events(scheduler* scheduler) {
 long schedule(scheduler* scheduler, int timecode, event_callback callback) {
     int i = scheduler->next_free_event;
     int id = scheduler->id_counter++;
-    
-    uint64_t master_timecode = scheduler->current_time + timecode;
 
-    scheduler->event_list[i].timecode = master_timecode;
+    scheduler->event_list[i].timecode = timecode;
     scheduler->event_list[i].callback = callback;
     scheduler->event_list[i].id = id;
 
@@ -100,19 +102,4 @@ long schedule(scheduler* scheduler, int timecode, event_callback callback) {
 
     scheduler->next_free_event++;
     return id;
-}
-
-void scheduler_catch_up(scheduler* scheduler, long time, void* state) {
-    uint64_t target = scheduler->current_time + time;
-    scheduler_event* next_event = &scheduler->event_list[0];
-
-    while (scheduler->current_time < target) {
-        long id = next_event->id;
-        next_event->callback(state);
-
-        scheduler->current_time = next_event->timecode;
-
-        remove_event(scheduler, id);
-        next_event = &scheduler->event_list[0];
-    }
 }
