@@ -6,6 +6,8 @@
 #include "include/apu.h"
 #include "include/cpu.h"
 #include "include/cart.h"
+#include "include/ppu.h"
+
 #include "include/processor/spc700/spc700.h"
 
 static void init_scheduler(snes* snes);
@@ -31,6 +33,7 @@ snes* new_snes(cart* cart) {
 
     result->apu = new_apu(result->audio_ram, result->scheduler);
     result->cpu = new_cpu(result->cart, result->scheduler, &result->wram, result->apu, &result->cycle_count);
+    result->ppu = new_ppu(result->vram);
 
     init_scheduler(result);
     

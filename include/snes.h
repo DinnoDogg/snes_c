@@ -7,6 +7,7 @@
 #include "apu.h"
 #include "cpu.h"
 #include "cart.h"
+#include "ppu.h"
 
 #define SYSTEM_EVENT_COUNT 0x10
 
@@ -25,9 +26,12 @@ typedef struct snes {
     apu* apu;
     cart* cart;
     s_cpu* cpu;
+    ppu* ppu;
 
     wram wram;
+
     uint8_t audio_ram[0x10000];
+    uint16_t vram[0x8000];
 
     int cycle_count;
 } snes;

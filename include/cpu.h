@@ -68,6 +68,7 @@ typedef struct s_cpu {
 
     bool timer_irq_enabled;
     long irq_event_id;
+    uint8_t irq_mode;
 
     bool vblank_flag, hblank_flag;
     bool auto_joypad_busy;
