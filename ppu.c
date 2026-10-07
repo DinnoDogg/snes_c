@@ -68,14 +68,34 @@ void increment_vram_address(ppu* ppu) {
 }
 
 uint16_t get_vram_address(ppu* ppu) {
-    uint8_t low = ppu->vram_address & 0xFF;
-    uint16_t high = ppu->vram_address & 0xFF00;
+    uint16_t result = ppu->vram_address;
+
+    if (!ppu->address_translation) {
+        return result;
+    }
 
     switch (ppu->address_translation) {
         case 1:
-            
+            uint8_t y = (result & 0xE0) >> 5;
+            uint8_t c = result & 0x1F;
+            result &= 0xFF00;
+            result |= (c << 3) | y;
+            break; 
+
+        case 2:
+            uint8_t y = (result & 0x1C0) >> 6;
+            uint8_t c = (result & 0x3E) >> 1;
+            bool p = result & 1;
+            result &= 0xFE00;
+            result |= (c << 4) | (p << 3) | y;
+            break;
+
+        case 3:
+            uint8_t y = (result & 0x380) >> 7;
+            uint8_t c = (result & 0x3E) >> 1;
+            uint8_t p = result & 1;
 
     }
 
-    return high | low;
+    return result;
 }
