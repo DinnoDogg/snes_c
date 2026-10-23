@@ -50,7 +50,7 @@ void write_ppu_io(ppu* ppu, uint8_t address, uint8_t data) {
             break;
 
         case 0x19: //VMDATAH
-            uint16_t addr = ppu->vram_address & 0x7FFF;
+            // uint16_t addr = ppu->vram_address & 0x7FFF;
             addr <<= 1;
             ppu->vram[addr + 1] = data;
 
@@ -74,28 +74,28 @@ uint16_t get_vram_address(ppu* ppu) {
         return result;
     }
 
-    switch (ppu->address_translation) {
-        case 1:
-            uint8_t y = (result & 0xE0) >> 5;
-            uint8_t c = result & 0x1F;
-            result &= 0xFF00;
-            result |= (c << 3) | y;
-            break; 
+    // switch (ppu->address_translation) {
+    //     case 1:
+    //         uint8_t y = (result & 0xE0) >> 5;
+    //         uint8_t c = result & 0x1F;
+    //         result &= 0xFF00;
+    //         result |= (c << 3) | y;
+    //         break; 
 
-        case 2:
-            uint8_t y = (result & 0x1C0) >> 6;
-            uint8_t c = (result & 0x3E) >> 1;
-            bool p = result & 1;
-            result &= 0xFE00;
-            result |= (c << 4) | (p << 3) | y;
-            break;
+    //     case 2:
+    //         uint8_t y = (result & 0x1C0) >> 6;
+    //         uint8_t c = (result & 0x3E) >> 1;
+    //         bool p = result & 1;
+    //         result &= 0xFE00;
+    //         result |= (c << 4) | (p << 3) | y;
+    //         break;
 
-        case 3:
-            uint8_t y = (result & 0x380) >> 7;
-            uint8_t c = (result & 0x3E) >> 1;
-            uint8_t p = result & 1;
+    //     case 3:
+    //         uint8_t y = (result & 0x380) >> 7;
+    //         uint8_t c = (result & 0x3E) >> 1;
+    //         uint8_t p = result & 1;
 
-    }
+    // }
 
     return result;
 }

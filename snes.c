@@ -12,7 +12,7 @@
 
 static void init_scheduler(snes* snes);
 
-static void schedule_apu_op(snes* snes, int timecode);
+static void schedule_apu_op(snes* snes, unsigned int time);
 static void handle_apu_op(void* state);
 
 static void schedule_vblank(snes* snes);
@@ -86,18 +86,17 @@ void write_wram_io(wram* wram, uint8_t address, uint8_t data) {
 
 void snes_run_for(snes* snes, uint64_t cycle_count) {
     uint64_t target = snes->scheduler->current_time + cycle_count;
-    scheduler_event* next_event = &snes->scheduler->event_list[0];
 
+    scheduler_event next_event = scheduler_peek(snes->scheduler);
     snes->cycle_count += cycle_count;
 
-    while (next_event->timecode <= target) {
-        long id = next_event->id;
-        snes->scheduler->current_time = next_event->timecode;
+    while (next_event.time <= target) {
+        snes->scheduler->current_time = next_event.time;
 
-        next_event->callback(snes);
+        scheduler_pop(snes->scheduler);
+        next_event.callback(snes);
 
-        remove_event(snes->scheduler, id);
-        next_event = &snes->scheduler->event_list[0];
+        next_event = scheduler_peek(snes->scheduler);
 
         if (snes->scheduler->current_time > target) {
             target = snes->scheduler->current_time;
@@ -117,17 +116,17 @@ void handle_apu_op(void* state) {
 
     int next_time = spc->cycle_count * CLOCK_DIVISOR_APU;
 
-    schedule_event(snes_ptr->scheduler, next_time, &handle_apu_op);
+    scheduler_push(snes_ptr->scheduler, next_time, &handle_apu_op);
 }
 
 void schedule_vblank(snes* snes) {
     long start_time = 225 * 1364; //225 lines till next vblank; ASSUME OVERSCAN OFF FIX LATER !!!!!
-    schedule_event(snes->scheduler, start_time, &vblank_start);
+    scheduler_push(snes->scheduler, start_time, &vblank_start);
 }
 
 void schedule_hblank(snes* snes) {
     int start_time = 274 * 4; 
-    schedule_event(snes->scheduler, start_time, &hblank_start);
+    scheduler_push(snes->scheduler, start_time, &hblank_start);
 }
 
 void vblank_start(void* state) {
@@ -139,7 +138,7 @@ void vblank_start(void* state) {
 
     printf("V BLONK!!!\n");
 
-    schedule_event(snes_ptr->scheduler, end_time, &vblank_end);
+    scheduler_push(snes_ptr->scheduler, end_time, &vblank_end);
 }
 
 void vblank_end(void* state) {
@@ -163,7 +162,7 @@ void hblank_start(void* state) {
 
     printf("h blank at %u\n", h_pos);
 
-    schedule_event(snes_ptr->scheduler, end_time, &hblank_end);
+    scheduler_push(snes_ptr->scheduler, end_time, &hblank_end);
 }
 
 void hblank_end(void* state) {

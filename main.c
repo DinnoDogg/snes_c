@@ -70,8 +70,6 @@ int main(int argc, char *argv[]) {
     double elapsed = (double) (end - start) / 1e+6f;
     double average = elapsed / (double) frame_count;
 
-    print_scheduled_events(snes->scheduler);
-
     wdc65816_print_state((WDC65816*) snes->cpu);
     spc700_print_state((SPC700*) snes->apu);
 

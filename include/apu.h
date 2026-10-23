@@ -15,7 +15,7 @@ typedef struct apu_timer {
     uint8_t up_counter: 4;
     uint8_t interval, internal_counter;
     bool enabled;
-    long tick_event_id;
+    uint64_t tick_event_id;
 } apu_timer;
 
 typedef struct apu {

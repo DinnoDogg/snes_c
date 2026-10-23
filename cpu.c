@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "include/snes.h"
 #include "include/cart.h"
@@ -342,7 +343,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
                 cpu->irq_flag = false;
 
                 if (cpu->timer_irq_enabled) {
-                    remove_event(cpu->scheduler, cpu->irq_event_id);
+                    scheduler_remove_by_id(cpu->scheduler, cpu->irq_event_id);
                     cpu->timer_irq_enabled = false;
                 }
             }
@@ -430,7 +431,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
                     channel->count = 0x10000;
                 }
 
-                schedule_event(cpu->scheduler, next_time, &handle_dma);
+                scheduler_push(cpu->scheduler, next_time, &handle_dma);
 
                 next_time += 16; //initialization and end INACCURATE
                 next_time += channel->count * 8; //8 cycles per byte;

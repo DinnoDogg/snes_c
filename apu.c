@@ -205,14 +205,14 @@ void write_internal_io(apu* apu, uint8_t address, uint8_t data) {
                 timer->internal_counter = 0;
 
                 if (timer->enabled) {
-                    remove_event(apu->scheduler, timer->tick_event_id);
+                    scheduler_remove_by_id(apu->scheduler, timer->tick_event_id);
                 }
 
                 if (timer_enable) {
                     int next_time = master_cycles_per_timer_tick[i];
                     timer_tick_callback callback = tick_callback[i];
 
-                    schedule_event_set_id(apu->scheduler, &timer->tick_event_id, next_time, callback);
+                    scheduler_push_set_id(apu->scheduler, &timer->tick_event_id, next_time, callback);
                 }
 
                 timer->enabled = timer_enable;
@@ -275,5 +275,5 @@ void tick_timer(apu* apu, int timer_number) {
         timer->up_counter++;
     }
 
-    schedule_event_set_id(apu->scheduler, &timer->tick_event_id, next_time, callback);
+    scheduler_push_set_id(apu->scheduler, &timer->tick_event_id, next_time, callback);
 }
