@@ -74,28 +74,15 @@ uint16_t get_vram_address(ppu* ppu) {
         return result;
     }
 
-    // switch (ppu->address_translation) {
-    //     case 1:
-    //         uint8_t y = (result & 0xE0) >> 5;
-    //         uint8_t c = result & 0x1F;
-    //         result &= 0xFF00;
-    //         result |= (c << 3) | y;
-    //         break; 
+    uint8_t bit_count = 7 + ppu->address_translation;
 
-    //     case 2:
-    //         uint8_t y = (result & 0x1C0) >> 6;
-    //         uint8_t c = (result & 0x3E) >> 1;
-    //         bool p = result & 1;
-    //         result &= 0xFE00;
-    //         result |= (c << 4) | (p << 3) | y;
-    //         break;
+    uint16_t mask = (1 << bit_count) - 1;
+    uint16_t lower = result & mask;
 
-    //     case 3:
-    //         uint8_t y = (result & 0x380) >> 7;
-    //         uint8_t c = (result & 0x3E) >> 1;
-    //         uint8_t p = result & 1;
+    uint8_t shift = bit_count - 3;
 
-    // }
+    uint16_t shifted = ((lower << 3) | (lower >> shift)) & mask;
+    result = (result & ~mask) | shifted;
 
     return result;
 }

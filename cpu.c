@@ -332,7 +332,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             //write joypad
             break;
 
-        case 0x200: //NMITIMEN
+        case 0x200: { //NMITIMEN
             bool nmi_enable = get_bit(data, 7);
             bool auto_joypad_enable = get_bit(data, 0);
             uint8_t h_v_irq_mode = (data & 0x30) >> 4;
@@ -355,6 +355,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             cpu->vblank_nmi_enable = nmi_enable;
             //schedule auto joypad
             break;
+        }
 
         case 0x201: //WRIO
             //joypad io
@@ -462,8 +463,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             break;
 
         case 0x20D: //MEMSEL
-            bool speed = get_bit(data, 0);
-            cpu->memory_2_region_speed = speed;
+            cpu->memory_2_region_speed = get_bit(data, 0);;
             break; 
     }
 }
@@ -537,7 +537,7 @@ void write_dma_io(s_cpu* cpu, uint16_t address, uint8_t data) {
     cpu_dma_channel* channel = &cpu->dma_channel[channel_number];
 
     switch (port) {
-        case 0x0: //DMAPx
+        case 0x0: { //DMAPx
             bool transfer_direction = get_bit(data, 7);
             uint8_t address_a_mode = (data >> 0x3) & 0x3;
             uint8_t pattern = data & 0x7;
@@ -548,6 +548,7 @@ void write_dma_io(s_cpu* cpu, uint16_t address, uint8_t data) {
             channel->address_a_mode = address_a_mode;
             channel->pattern = pattern;
             break;
+        }
 
         case 0x1: //BBADx
             channel->bus_b_address = data;
