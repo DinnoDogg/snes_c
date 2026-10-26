@@ -1,2 +1,0 @@
-ROM size: 2048 Kib
-Game title: MEGAMAN X            
