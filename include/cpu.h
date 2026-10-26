@@ -6,6 +6,7 @@
 #include "processor/wdc65816/wdc65816.h"
 #include "cart.h"
 #include "apu.h"
+#include "ppu.h"
 #include "scheduler.h"
 
 typedef struct wram wram;
@@ -51,10 +52,11 @@ typedef struct s_cpu {
         cart* cart;
         wram* wram;
         apu* apu;
+        ppu* ppu;
         //joypad
     } bus;
 
-    int* cycle_count;
+    uint64_t* cycle_count;
 
     cpu_dma_channel dma_channel[0x8];
 
@@ -88,7 +90,7 @@ typedef struct s_cpu {
     bool memory_2_region_speed;
 } s_cpu;
 
-s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, int* cycle_count);
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, ppu* ppu, uint64_t* cycle_count);
 void free_cpu(s_cpu* cpu);
 
 int cycle_cpu(s_cpu* cpu);

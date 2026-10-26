@@ -6,10 +6,12 @@
 #include "include/snes.h"
 #include "include/cart.h"
 #include "include/apu.h"
+#include "include/ppu.h"
 #include "include/cpu.h"
+
 #include "include/processor/wdc65816/wdc65816.h"
 
-static bool get_bit(int data, int index);
+static bool get_bit(unsigned int data, unsigned int index);
 
 static uint8_t read_cpu_bus(void* cpu, uint32_t address, bool valid_access);
 static void write_cpu_bus(void* cpu, uint32_t address, uint8_t data);
@@ -37,11 +39,11 @@ static void handle_timer_irq(void* state);
 
 static const int GLOBAL_CPU_VERSION = 2;
 
-bool get_bit(int data, int index) {
+bool get_bit(unsigned int data, unsigned int index) {
     return (data >> index) & 0x1;
 }
 
-s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, int* cycle_count) {
+s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, ppu* ppu, uint64_t* cycle_count) {
     s_cpu* result = calloc(1, sizeof(s_cpu));
 
     init_wdc65816((WDC65816*) result, &read_cpu_bus, &write_cpu_bus);
@@ -51,6 +53,7 @@ s_cpu* new_cpu(cart* cart, scheduler* scheduler, wram* wram, apu* apu, int* cycl
     result->bus.wram = wram;
     result->bus.apu = apu;
     result->bus.cart = cart;
+    result->bus.ppu = ppu;
 
     result->cycle_count = cycle_count;
 
@@ -217,7 +220,8 @@ uint8_t read_bus_b(s_cpu* cpu, uint8_t address) {
     uint8_t result = cpu->mdr;
     
     if (address < 0x40) {
-        //read ppu
+        printf("unimplemented ppu read %u\n", address & 0x3F);
+        result = read_ppu_io(cpu->bus.ppu, address & 0x3F);
     }
 
     else if (address < 0x80) {
@@ -236,7 +240,7 @@ void write_bus_b(s_cpu* cpu, uint8_t address, uint8_t data) {
     //printf("b bus write\n");
 
     if (address < 0x40) {
-        //write ppu
+        write_ppu_io(cpu->bus.ppu, address & 0x3F, data);
         return;
     }
 
@@ -439,7 +443,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
 
                 cpu->active_dma_channel = channel_number;
 
-                printf("\nChannel %u\n", channel_number);
+                /*printf("\nChannel %u\n", channel_number);
                 printf("Address A: %lu\n", (channel->bus_a_address.bank << 16) | channel->bus_a_address.offset);
                 printf("Address B: %u\n", channel->bus_b_address);
                 printf("Direction: %s\n", channel->direction ? "B -> A" : "A -> B");
@@ -452,7 +456,7 @@ void write_internal_io(s_cpu* cpu, uint16_t address, uint8_t data) {
                 }
 
                 printf("Count %u\n", channel->count);
-                printf("Pattern %u\n\n", channel->pattern);
+                printf("Pattern %u\n\n", channel->pattern);*/
 
             }
 

@@ -32,8 +32,8 @@ snes* new_snes(cart* cart) {
     result->scheduler = new_scheduler(SYSTEM_EVENT_COUNT);
 
     result->apu = new_apu(result->audio_ram, result->scheduler);
-    result->cpu = new_cpu(result->cart, result->scheduler, &result->wram, result->apu, &result->cycle_count);
     result->ppu = new_ppu(result->vram);
+    result->cpu = new_cpu(result->cart, result->scheduler, &result->wram, result->apu, result->ppu, &result->cycle_count);
 
     init_scheduler(result);
     
@@ -52,7 +52,7 @@ void init_scheduler(snes* snes) {
 
     //schedule vblank - assume interlace and overscan disabled. FIX LATER!!!!
     schedule_vblank(snes);
-    // schedule_hblank(snes);
+    schedule_hblank(snes);
 }
 
 uint8_t read_wram_io(wram* wram) {
@@ -125,7 +125,7 @@ void schedule_vblank(snes* snes) {
 }
 
 void schedule_hblank(snes* snes) {
-    int start_time = 274 * 4; 
+    int start_time = 273 * 4; 
     scheduler_push(snes->scheduler, start_time, &hblank_start);
 }
 
@@ -136,7 +136,7 @@ void vblank_start(void* state) {
 
     long end_time = 37 * 1364; //37 lines of vblank, 1364 cycles per vblank line; ASSUME OVERSCAN OFF FIX LATER !!!!!
 
-    printf("V BLONK!!!\n");
+    // printf("V BLONK!!!\n");
 
     scheduler_push(snes_ptr->scheduler, end_time, &vblank_end);
 }
@@ -148,24 +148,27 @@ void vblank_end(void* state) {
     
     snes_ptr->cycle_count = 0;
 
-    printf("bye vblon\n");
+    // printf("bye vblon\n");
 
     schedule_vblank(snes_ptr);
 }
 
 void hblank_start(void* state) {
     snes* snes_ptr = (snes*) state;
-    //handle hdraw
 
     int end_time = 67 * 4;
     int h_pos = (snes_ptr->cycle_count >> 2) % 342;
 
-    printf("h blank at %u\n", h_pos);
+    ppu_h_draw(snes_ptr->ppu);
+    snes_ptr->cpu->hblank_flag = true;
+
+    // printf("h blank at %u\n", h_pos);
 
     scheduler_push(snes_ptr->scheduler, end_time, &hblank_end);
 }
 
 void hblank_end(void* state) {
     snes* snes_ptr = (snes*) state;
+    snes_ptr->cpu->hblank_flag = false;
     schedule_hblank(snes_ptr);
 }

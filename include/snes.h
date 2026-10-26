@@ -33,7 +33,7 @@ typedef struct snes {
     uint8_t audio_ram[0x10000];
     uint16_t vram[0x8000];
 
-    int cycle_count;
+    uint64_t cycle_count;
 } snes;
 
 snes* new_snes(cart* cart);

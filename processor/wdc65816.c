@@ -86,14 +86,14 @@ void cycle_wdc65816(WDC65816* cpu) {
             handle_interrupt(cpu, VECTOR_NMI);
             cpu->nmi_latch = false;
 
-            printf("EN EM EYE!!\n");
+            // printf("EN EM EYE!!\n");
             return;
         }
 
         if (cpu->irq_pending) {
             handle_interrupt(cpu, VECTOR_IRQ);
 
-            printf("EYE ARE QUEUE!!\n");
+            // printf("EYE ARE QUEUE!!\n");
             return;
         } 
 
@@ -111,7 +111,7 @@ void cycle_wdc65816(WDC65816* cpu) {
 
         uint8_t opcode = read_immediate(cpu);
 
-        printf("65816 opcode %02X at %06X\n", opcode, (cpu->registers.pc.word - 1) | cpu->registers.pbr << 16);
+        // printf("65816 opcode %02X at %06X\n", opcode, (cpu->registers.pc.word - 1) | cpu->registers.pbr << 16);
         
         switch (opcode) {
             EXEC_OP_M(0x2D, schedule_addr_a, schedule_and, false);

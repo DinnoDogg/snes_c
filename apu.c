@@ -152,19 +152,21 @@ uint8_t read_internal_io(apu* apu, uint8_t address) {
         case 0x3: 
             break; //dsp read
 
-        case 0x4: case 0x5: case 0x6: case 0x7: 
+        case 0x4: case 0x5: case 0x6: case 0x7: {
             uint8_t port = address & 0x3;
             result = apu->io_port[port].data_in;
             break;
+        }
 
-        case 0x8: case 0x9:
-            result = apu->bus.audio_ram[0xF0 | address];
-            break;
-
-        case 0xD: case 0xE: case 0xF:
+        case 0xD: case 0xE: case 0xF: {
             uint8_t timer = (address - 1) & 0x3;
             result = apu->timer[timer].up_counter;
             apu->timer[timer].up_counter = 0;
+            break;
+        }
+
+        case 0x8: case 0x9:
+            result = apu->bus.audio_ram[0xF0 | address];
             break;
     }
 
@@ -180,7 +182,7 @@ void write_internal_io(apu* apu, uint8_t address, uint8_t data) {
         case 0x0: 
             break; //test register
 
-        case 0x1: 
+        case 0x1: {
             bool ipl_enable = get_bit(data, 7);
             bool clear_ports_0_1 = get_bit(data, 4);
             bool clear_ports_2_3 = get_bit(data, 5);
@@ -220,19 +222,22 @@ void write_internal_io(apu* apu, uint8_t address, uint8_t data) {
 
             apu->ipl_enable = ipl_enable;
             break;
+        }
 
-        case 0x4: case 0x5: case 0x6: case 0x7:
+        case 0x4: case 0x5: case 0x6: case 0x7: {
             uint8_t port = address & 0x3;
             apu->io_port[port].data_out = data;
             break;
+        }
+
+        case 0xA: case 0xB: case 0xC: {
+            uint8_t timer = (address + 2) & 0x3;
+            apu->timer[timer].interval = data;
+            break;
+        }
 
         case 0x8: case 0x9:
             apu->bus.audio_ram[0xF0 | address] = data;
-            break;
-
-        case 0xA: case 0xB: case 0xC:
-            uint8_t timer = (address + 2) & 0x3;
-            apu->timer[timer].interval = data;
             break;
     }
 }
