@@ -326,19 +326,23 @@ uint32_t get_top_pixel(ppu* ppu, uint16_t x, uint16_t y) {
 
         uint16_t tilemap_addr = ppu->background[bg].tilemap_address;
 
+        bool horizontal_map = ppu->background[bg].horizontal_map;
+        bool vertical_map = ppu->background[bg].vertical_map;
+
         if (ppu->background[bg].horizontal_map) {
             if (tile_x > 31) {
-                tilemap_addr |= 1 << 10;
+                tilemap_addr += 0x400;
             }
         }
 
         if (ppu->background[bg].vertical_map) {
             if (tile_y > 31) {
-                tilemap_addr |= 1 << 11;
+                tilemap_addr += 0x400;
+                if (horizontal_map) tilemap_addr += 0x400;
             }
         }
 
-        tilemap_addr |= ((tile_y & 0x1F) * 32) + (tile_x & 0x1F);
+        tilemap_addr += ((tile_y & 0x1F) * 32) + (tile_x & 0x1F);
 
         uint16_t tilemap_data = ppu->vram[tilemap_addr];
         bool tile_priority = get_bit(tilemap_data, 13);
