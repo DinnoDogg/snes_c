@@ -75,6 +75,8 @@ static void put_pixel(ppu* ppu, uint8_t x, uint8_t y, uint32_t color);
 static uint32_t get_top_pixel(ppu* ppu, uint16_t x, uint16_t y);
 static uint32_t get_chr_pixel(ppu* ppu, ppu_character chr, uint8_t x, uint8_t y);
 
+
+
 static uint32_t rgb15_to_rgb24(uint32_t color);
 
 static const uint8_t increment_amount[4] = {1, 32, 128, 128};
@@ -342,7 +344,7 @@ uint32_t get_top_pixel(ppu* ppu, uint16_t x, uint16_t y) {
             }
         }
 
-        tilemap_addr += ((tile_y & 0x1F) * 32) + (tile_x & 0x1F);
+        tilemap_addr |= ((tile_y & 0x1F) * 32) + (tile_x & 0x1F);
 
         uint16_t tilemap_data = ppu->vram[tilemap_addr];
         bool tile_priority = get_bit(tilemap_data, 13);

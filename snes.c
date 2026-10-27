@@ -125,7 +125,7 @@ void schedule_vblank(snes* snes) {
 }
 
 void schedule_hblank(snes* snes) {
-    int start_time = 273 * 4; 
+    int start_time = 273 * 4 + 4; 
     scheduler_push(snes->scheduler, start_time, &hblank_start);
 }
 
