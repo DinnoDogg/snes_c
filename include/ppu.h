@@ -22,6 +22,11 @@ typedef struct ppu_window {
     bool invert_bg[4];
 } ppu_window;
 
+// typedef struct ppu_pixel {
+//     uint32_t color_data;
+    
+// } ppu_pixel;
+
 typedef struct ppu {
     uint16_t* vram;
     uint16_t cgram[0x100];

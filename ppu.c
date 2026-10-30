@@ -323,8 +323,10 @@ uint32_t get_top_pixel(ppu* ppu, uint16_t x, uint16_t y) {
         uint16_t scrolled_x = (ppu->background[bg].horizontal_offset + x) & 0x1FF;
         uint16_t scrolled_y = (ppu->background[bg].vertical_offset + y) & 0x1FF;
 
-        uint16_t tile_x = scrolled_x >> 3;
-        uint16_t tile_y = scrolled_y >> 3;
+        uint8_t tile_shift = ppu->background[bg].char_size ? 4 : 3;
+
+        uint16_t tile_x = scrolled_x >> tile_shift;
+        uint16_t tile_y = scrolled_y >> tile_shift;
 
         uint16_t tilemap_addr = ppu->background[bg].tilemap_address;
 
@@ -378,8 +380,33 @@ uint32_t get_top_pixel(ppu* ppu, uint16_t x, uint16_t y) {
 
 uint32_t get_chr_pixel(ppu* ppu, ppu_character chr, uint8_t x, uint8_t y) {
     uint8_t word_count = words_per_char[chr.bit_depth];
-    uint16_t data_address = chr.base_address + (chr.index * word_count);
 
+    if (chr.size) {
+        x &= 0xF;
+        y &= 0xF;
+
+        if (x > 0x7) {
+            if (!chr.flip_x) {
+                chr.index++;
+            }
+        }
+
+        else if (chr.flip_x) {
+            chr.index++;
+        }
+
+        if (y > 0x7) {
+            if (!chr.flip_y) {
+                chr.index += 16;
+            }
+        }
+
+        else if (chr.flip_y) {
+            chr.index += 16;
+        }
+    }
+
+    uint16_t data_address = chr.base_address + (chr.index * word_count);
     uint32_t result = 0;
 
     //HANDLE 16x16 TILES!!!
@@ -388,11 +415,11 @@ uint32_t get_chr_pixel(ppu* ppu, ppu_character chr, uint8_t x, uint8_t y) {
     x &= 0x7;
 
     if (!chr.flip_x) {
-        x = 7 - x;
+        x = 0x7 - x;
     }
 
     if (chr.flip_y) {
-        y = 7 - y;
+        y = 0x7 - y;
     }
 
     switch (chr.bit_depth) {
